@@ -1,14 +1,13 @@
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+from audit.models import AuditLog
+from .models import Material, Inbound, Outbound, IncomingInspection, TA_management
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 import json
 from datetime import datetime
-from .models import Material, Inbound, Outbound
-from audit.models import AuditLog
 from hr.models import Employee
-
-# Create your views here.
+from django.shortcuts import render
+from django.db.models import Prefetch
 
 
 @login_required
@@ -104,6 +103,37 @@ def scm_history(request):
 
 
 @login_required
+def ta810_management(request):
+    """T/A 810 이력관리"""
+    return render(request, 'ta/ta810_management.html', {})
+
+@login_required
+def ta810_unsuitable_list(request):
+    """T/A 810 부적합품 목록"""
+    return render(request, 'ta/ta810_unsuitable_list.html', {})
+
+@login_required
+def ta840_management(request):
+    """T/A 840 이력관리"""
+    return render(request, 'ta/ta840_management.html', {})
+
+@login_required
+def ta840_unsuitable_list(request):
+    """T/A 840 부적합품 목록"""
+    return render(request, 'ta/ta840_unsuitable_list.html', {})
+
+@login_required
+def ta870_management(request):
+    """T/A 870 이력관리"""
+    return render(request, 'ta/ta870_management.html', {})
+
+@login_required
+def ta870_unsuitable_list(request):
+    """T/A 870 부적합품 목록"""
+    return render(request, 'ta/ta870_unsuitable_list.html', {})
+
+
+@login_required
 @require_POST
 def scm_inout_create(request):
     """입고/출고 등록 API"""
@@ -147,3 +177,35 @@ def scm_inout_create(request):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@login_required
+def inspection_table(request):
+    inspections = IncomingInspection.objects.prefetch_related(
+        Prefetch("lots", queryset=TA_management.objects.order_by("lot_number"))  # ← 변경
+    ).order_by("incoming_date")
+
+    table_data = []
+
+    for inspection in inspections:
+        lots = list(inspection.lots.all())
+        lot_count = len(lots)
+        total_qty = sum(lot.quantity for lot in lots)
+
+        for i, lot in enumerate(lots):
+            table_data.append({
+                "is_first_row": i == 0,
+                "rowspan": lot_count,
+                "incoming_date": inspection.incoming_date,
+                "total_quantity": total_qty,
+                "lot_number": lot.lot_number,
+                "quantity": lot.quantity,
+                "incoming_defect": lot.incoming_defect,
+                "defect": lot.defect,
+                "rework": lot.rework,
+                "pending": lot.pending,
+                "process_defect": lot.process_defect,
+                "note": lot.note,
+            })
+
+    return render(request, "inspection_table.html", {"table_data": table_data})

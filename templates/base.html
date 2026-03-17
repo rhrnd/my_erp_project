@@ -72,6 +72,25 @@
           min-width: max-content;
         }
       }
+
+      /* 메가 드롭다운 */
+      .mega-menu {
+        width: fit-content;
+        padding: 0.75rem 0.5rem;
+      }
+      .mega-menu .mega-col {
+        min-width: 140px;
+      }
+      .mega-menu .mega-col-header {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+        padding: 0.2rem 1rem 0.4rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 0.25rem;
+      }
     </style>
   </head>
 
@@ -94,7 +113,7 @@
             <!-- 인사 관리 (드롭다운) -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle {% if '/hr/' in request.path %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                인사 관리
+                인사
               </a>
               <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-horizontal">
                 <li><a class="dropdown-item {% if 'hr/list' in request.path %}active{% endif %}" href="{% url 'hr:hr_list' %}">사원 리스트</a></li>
@@ -105,15 +124,37 @@
               </ul>
             </li>
 
-            <!-- 재고 관리 (드롭다운) -->
+            <!-- 제품 (메가 드롭다운) -->
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle {% if '/scm/' in request.path %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                재고 관리
+                제품
               </a>
-              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-horizontal">
-                <li><a class="dropdown-item {% if 'scm/list' in request.path %}active{% endif %}" href="{% url 'scm:scm_list' %}">제품 조회</a></li>
-                <li><a class="dropdown-item {% if 'scm/history' in request.path %}active{% endif %}" href="{% url 'scm:scm_history' %}">제품 내역</a></li>
-              </ul>
+              <div class="dropdown-menu dropdown-menu-dark mega-menu">
+                <div class="d-flex gap-4">
+
+                  <!-- T/A 810 -->
+                  <div class="mega-col">
+                    <div class="mega-col-header">T/A 810</div>
+                    <a class="dropdown-item {% if 'ta/810/management' in request.path %}active{% endif %}" href="{% url 'scm:ta810_management' %}">이력관리</a>
+                    <a class="dropdown-item {% if 'ta/810/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta810_unsuitable_list' %}">부적합품 목록</a>
+                  </div>
+
+                  <!-- T/A 840 -->
+                  <div class="mega-col">
+                    <div class="mega-col-header">T/A 840</div>
+                    <a class="dropdown-item {% if 'ta/840/management' in request.path %}active{% endif %}" href="{% url 'scm:ta840_management' %}">이력관리</a>
+                    <a class="dropdown-item {% if 'ta/840/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta840_unsuitable_list' %}">부적합품 목록</a>
+                  </div>
+
+                  <!-- T/A 870 -->
+                  <div class="mega-col">
+                    <div class="mega-col-header">T/A 870</div>
+                    <a class="dropdown-item {% if 'ta/870/management' in request.path %}active{% endif %}" href="{% url 'scm:ta870_management' %}">이력관리</a>
+                    <a class="dropdown-item {% if 'ta/870/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta870_unsuitable_list' %}">부적합품 목록</a>
+                  </div>
+
+                </div>
+              </div>
             </li>
 
             <!-- 세금 관리 -->

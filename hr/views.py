@@ -1,6 +1,7 @@
 import calendar
 import html
 import json
+from functools import lru_cache
 
 import holidays as holidays_lib
 from decimal import Decimal, InvalidOperation
@@ -19,6 +20,12 @@ from . import services
 
 # 급여/사원 수정 시 감사 로그에서 제외할 민감 필드
 _SENSITIVE_KEYS = frozenset({'emp_rn', 'resident_number'})
+
+
+@lru_cache(maxsize=5)
+def _get_kr_holidays(year: int) -> dict:
+    """연도별 한국 공휴일을 캐싱하여 반환한다 (서버 재시작 전까지 유지)."""
+    return dict(holidays_lib.KR(years=year))
 
 
 def _null(val):
@@ -351,7 +358,7 @@ def attendance_list(request):
             weekend_days.append(d)
 
     # 4-1. 한국 공휴일 추출 (주말 제외 평일 공휴일만)
-    kr_holidays = holidays_lib.KR(years=selected_year)
+    kr_holidays = _get_kr_holidays(selected_year)
     holiday_days = {}  # { 일(int): 공휴일명(str) }
     for date, name in kr_holidays.items():
         if date.month == selected_month and date.day not in weekend_days:

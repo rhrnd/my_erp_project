@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .table-bordered th, .table-bordered td {
+        border: 1px solid #e2e8f0 !important;
+    }
+    .text-nowrap-cell {
+        white-space: nowrap;
+    }
+    thead tr:first-child th {
+        background-color: #f1f5f9;
+    }
+    thead tr:last-child th {
+        background-color: #f8fafc;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="fw-bold">T/A 870 이력관리</h2>
+    <button class="btn btn-primary shadow-sm">+ 등록</button>
+</div>
+
+<!-- 검색 영역 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card p-3 border-0 shadow-sm bg-light">
+            <form class="row g-2 align-items-center" onsubmit="return false;">
+                <div class="col-auto">
+                    <input type="date" class="form-control" id="searchDateFrom" max="9999-12-31">
+                </div>
+                <div class="col-auto text-muted">~</div>
+                <div class="col-auto">
+                    <input type="date" class="form-control" id="searchDateTo" max="9999-12-31">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="searchLot" placeholder="LOT_NO 검색...">
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary" onclick="filterRows()">검색</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 테이블 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card p-0 shadow">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-nowrap-cell" style="width: 110px;">입고일</th>
+                            <th class="text-nowrap-cell" style="width: 90px;">입고수량</th>
+                            <th class="text-nowrap-cell" style="width: 130px;">LOT_NO</th>
+                            <th class="text-nowrap-cell" style="width: 80px;">수량</th>
+                            <th class="text-nowrap-cell" style="width: 100px;">수입불량</th>
+                            <th class="text-nowrap-cell" style="width: 80px;">불량</th>
+                            <th class="text-nowrap-cell" style="width: 80px;">재작업</th>
+                            <th class="text-nowrap-cell" style="width: 80px;">대기</th>
+                            <th class="text-nowrap-cell" style="width: 110px;">수입검사불량</th>
+                            <th class="text-nowrap-cell" style="width: 100px;">공정불량</th>
+                            <th class="text-nowrap-cell" style="width: 80px;">대기</th>
+                            <th style="min-width: 150px;">비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taTableBody">
+                        {% if records %}
+                            {% for record in records %}
+                            <tr>
+                                <td class="text-nowrap-cell">{{ record.incoming_date }}</td>
+                                <td>{{ record.incoming_qty }}</td>
+                                <td class="text-nowrap-cell">{{ record.lot_no }}</td>
+                                <td>{{ record.qty }}</td>
+                                <td>{{ record.defect }}</td>
+                                <td>{{ record.rework }}</td>
+                                <td>{{ record.incoming_pending }}</td>
+                                <td>{{ record.inspection_defect }}</td>
+                                <td>{{ record.process_pending }}</td>
+                                <td class="text-start">{{ record.remark }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="12" class="py-4 text-muted">등록된 이력이 없습니다.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterRows() {
+        const lot = document.getElementById('searchLot').value.toLowerCase();
+        const rows = document.getElementById('taTableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const text = rows[i].textContent || rows[i].innerText;
+            rows[i].style.display = !lot || text.toLowerCase().includes(lot) ? '' : 'none';
+        }
+    }
+
+    document.getElementById('searchLot').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') filterRows();
+    });
+</script>
+{% endblock %}
