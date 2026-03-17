@@ -15,6 +15,7 @@ class EmployeeAdmin(SimpleHistoryAdmin):
     list_display = ('emp_no', 'emp_nm', 'dept', 'emp_pos', 'emp_stat', 'emp_hire')
     search_fields = ('emp_nm', 'emp_no', 'dept__dept_nm')
     list_filter = ('dept', 'emp_stat')
+    list_select_related = ('dept',)
 
     history_list_display = ['get_change_type', 'get_changed_fields']
     history_list_filter = ['history_type', 'history_user']
