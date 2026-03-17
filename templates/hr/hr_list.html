@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<style>
+    .table-bordered th, .table-bordered td {
+        border: 1px solid #f1f5f9 !important;
+    }
+    .text-nowrap-cell {
+        white-space: nowrap;
+    }
+    .editable-cell {
+        cursor: pointer;
+    }
+    .editable-cell:hover {
+        background-color: #f0f9ff !important;
+    }
+</style>
+
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="fw-bold">사원 리스트</h2>
+    <button class="btn btn-primary shadow-sm" onclick="openCreateModal()">
+        + 사원 등록
+    </button>
+</div>
+
+<!-- 검색 영역 -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card p-3 border-0 shadow-sm bg-light">
+            <form class="row g-2" onsubmit="return false;">
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control" placeholder="이름, 부서, 직급 검색..." oninput="filterRows()">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 사원 목록 테이블 -->
+    <div class="col-12">
+        <div class="card p-0 shadow">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-nowrap-cell" style="width: 120px;">입사일자</th>
+                        <th class="text-nowrap-cell" style="width: 100px;">사원번호</th>
+                        <th class="text-nowrap-cell" style="width: 100px;">성명</th>
+                        <th class="text-nowrap-cell" style="width: 120px;">부서명</th>
+                        <th class="text-nowrap-cell" style="width: 80px;">직급명</th>
+                        <th class="text-nowrap-cell" style="width: 140px;">전화번호</th>
+                        <th class="text-nowrap-cell" style="width: 140px;">주민번호</th>
+                        <th style="min-width: 200px;">주소</th>
+                        <th class="text-nowrap-cell" style="width: 120px;">퇴사일</th>
+                        <th class="text-nowrap-cell" style="width: 100px;">재직상태</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                    {% for emp in employees %}
+                    <tr data-emp-no="{{ emp.emp_no }}"
+                        data-emp-nm="{{ emp.emp_nm }}"
+                        data-dept-id="{{ emp.dept.dept_id }}"
+                        data-emp-rn="{{ emp.emp_rn }}"
+                        data-emp-pos="{{ emp.emp_pos|default:'' }}"
+                        data-emp-tel="{{ emp.emp_tel|default:'' }}"
+                        data-emp-add="{{ emp.emp_add|default:'' }}"
+                        data-emp-hire="{{ emp.emp_hire|date:'Y-m-d' }}">
+                        <td class="text-muted text-nowrap-cell editable-cell" data-field="emp_hire" data-value="{{ emp.emp_hire|date:'Y-m-d' }}">{{ emp.emp_hire }}</td>
+                        <td class="text-nowrap-cell">{{ emp.emp_no }}</td>
+                        <td class="fw-bold text-nowrap-cell editable-cell" data-field="emp_nm" data-value="{{ emp.emp_nm }}">{{ emp.emp_nm }}</td>
+                        <td class="text-nowrap-cell editable-cell" data-field="dept" data-value="{{ emp.dept.dept_id }}"><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ emp.dept.dept_nm }}</span></td>
+                        <td class="text-nowrap-cell editable-cell" data-field="emp_pos" data-value="{{ emp.emp_pos|blank }}">{{ emp.emp_pos|blank }}</td>
+                        <td class="text-nowrap-cell editable-cell" data-field="emp_tel" data-value="{{ emp.emp_tel|blank }}">{{ emp.emp_tel|blank }}</td>
+                        <td class="text-nowrap-cell editable-cell" data-field="emp_rn" data-value="{{ emp.emp_rn }}">{{ emp.emp_rn }}</td>
+                        <td class="text-start text-truncate editable-cell" style="max-width: 300px;" title="{{ emp.emp_add|blank }}" data-field="emp_add" data-value="{{ emp.emp_add|blank }}">{{ emp.emp_add|blank }}</td>
+                        <td class="text-nowrap-cell">{{ emp.emp_retire_dt|default_if_none:"" }}</td>
+                        <td onclick="event.stopPropagation()">
+                            <select class="form-select form-select-sm" onchange="updateStatus('{{ emp.emp_no }}', this.value)">
+                                <option value="재직" {% if emp.emp_stat == '재직' %}selected{% endif %}>재직</option>
+                                <option value="휴직" {% if emp.emp_stat == '휴직' %}selected{% endif %}>휴직</option>
+                                <option value="퇴사" {% if emp.emp_stat == '퇴사' %}selected{% endif %}>퇴사</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="py-4 text-muted">등록된 사원이 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 재직상태 변경 사유 모달 -->
+<div class="modal fade" id="statusReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="statusReasonModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="statusReasonInput" class="form-control" rows="4" placeholder="사유를 입력하세요."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="statusReasonCancelBtn">취소</button>
+                <button type="button" class="btn btn-primary" id="statusReasonSaveBtn">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 사원 등록 모달 -->
+<div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">신규 사원 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEmployeeForm">
+                    <div class="mb-3"><label class="form-label">사원번호 <span class="text-danger">*</span></label><input type="text" class="form-control" id="empId"></div>
+                    <div class="mb-3"><label class="form-label">이름 <span class="text-danger">*</span></label><input type="text" class="form-control" id="empName"></div>
+                    <div class="mb-3">
+                        <label class="form-label">부서 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="empDept">
+                            <option value="">부서를 선택하세요</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.dept_id }}">{{ dept.dept_nm }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label">주민등록번호 <span class="text-danger">*</span></label><input type="text" class="form-control" id="empRn" placeholder="'-' 포함 입력"></div>
+                    <div class="mb-3"><label class="form-label">직급</label><input type="text" class="form-control" id="empPosition"></div>
+                    <div class="mb-3"><label class="form-label">연락처</label><input type="text" class="form-control" id="empPhone"></div>
+                    <div class="mb-3"><label class="form-label">주소</label><input type="text" class="form-control" id="empAddress"></div>
+                    <div class="mb-3"><label class="form-label">입사일 <span class="text-danger">*</span></label><input type="date" max="9999-12-31" class="form-control" id="empJoinDate"></div>
+                    <button type="submit" style="display:none;"></button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveEmployee()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 부서 목록 (인라인 편집용)
+    const departmentList = [
+        {% for dept in departments %}
+        { id: "{{ dept.dept_id }}", name: "{{ dept.dept_nm }}" }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let employeeModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalEl = document.getElementById('addEmployeeModal');
+        employeeModal = new bootstrap.Modal(modalEl);
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            document.getElementById('empId').focus();
+        });
+
+        document.getElementById('addEmployeeForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveEmployee();
+        });
+
+        // 인라인 편집 이벤트
+        document.getElementById('employeeTableBody').addEventListener('click', function(e) {
+            const cell = e.target.closest('.editable-cell');
+            if (!cell || cell.querySelector('input') || cell.querySelector('select')) return;
+
+            const field = cell.getAttribute('data-field');
+            const originalValue = cell.getAttribute('data-value') || '';
+            const row = cell.closest('tr');
+
+            activateCell(cell, field, originalValue, row);
+        });
+    });
+
+    function activateCell(cell, field, originalValue, row) {
+        const cellHeight = cell.offsetHeight;
+        let input;
+
+        if (field === 'dept') {
+            input = document.createElement('select');
+            input.className = 'form-select form-select-sm';
+            departmentList.forEach(dept => {
+                const opt = document.createElement('option');
+                opt.value = dept.id;
+                opt.textContent = dept.name;
+                if (dept.id == originalValue) opt.selected = true;
+                input.appendChild(opt);
+            });
+        } else if (field === 'emp_hire') {
+            input = document.createElement('input');
+            input.type = 'date';
+            input.max = '9999-12-31';
+            input.value = originalValue;
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.value = originalValue;
+        }
+
+        input.style.width = '100%';
+        input.style.height = cellHeight + 'px';
+        input.style.border = 'none';
+        input.style.outline = 'none';
+        input.style.backgroundColor = 'transparent';
+        input.style.fontSize = '13px';
+        input.style.padding = '0 4px';
+        input.style.boxSizing = 'border-box';
+
+        const originalHTML = cell.innerHTML;
+        cell.style.padding = '0';
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        if (input.select && field !== 'emp_hire') input.select();
+
+        const restoreCell = (value, displayHTML) => {
+            cell.style.padding = '';
+            cell.innerHTML = displayHTML !== undefined ? displayHTML : value;
+        };
+
+        const save = () => {
+            const newValue = input.value;
+            if (newValue === originalValue) {
+                restoreCell(originalValue, originalHTML);
+                return;
+            }
+
+            // 행의 현재 데이터 수집
+            const data = {
+                emp_id: row.getAttribute('data-emp-no'),
+                name: field === 'emp_nm' ? newValue : row.getAttribute('data-emp-nm'),
+                dept: field === 'dept' ? newValue : row.getAttribute('data-dept-id'),
+                resident_number: field === 'emp_rn' ? newValue : row.getAttribute('data-emp-rn'),
+                position: field === 'emp_pos' ? newValue : row.getAttribute('data-emp-pos'),
+                phone: field === 'emp_tel' ? newValue : row.getAttribute('data-emp-tel'),
+                address: field === 'emp_add' ? newValue : row.getAttribute('data-emp-add'),
+                join_date: field === 'emp_hire' ? newValue : row.getAttribute('data-emp-hire'),
+            };
+
+            fetch("{% url 'hr:employee_update' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    // 행 data 속성 업데이트
+                    const attrMap = {
+                        emp_nm: 'data-emp-nm',
+                        dept: 'data-dept-id',
+                        emp_rn: 'data-emp-rn',
+                        emp_pos: 'data-emp-pos',
+                        emp_tel: 'data-emp-tel',
+                        emp_add: 'data-emp-add',
+                        emp_hire: 'data-emp-hire',
+                    };
+                    if (attrMap[field]) row.setAttribute(attrMap[field], newValue);
+                    cell.setAttribute('data-value', newValue);
+
+                    // 셀 표시 업데이트
+                    if (field === 'dept') {
+                        const dept = departmentList.find(d => d.id == newValue);
+                        const deptName = dept ? dept.name : newValue;
+                        restoreCell(newValue, `<span class="badge bg-secondary bg-opacity-10 text-secondary">${deptName}</span>`);
+                    } else {
+                        restoreCell(newValue);
+                    }
+                } else {
+                    alert('저장 실패: ' + res.message);
+                    restoreCell(originalValue, originalHTML);
+                }
+            })
+            .catch(() => {
+                alert('서버 통신 오류가 발생했습니다.');
+                restoreCell(originalValue, originalHTML);
+            });
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') {
+                input.removeEventListener('blur', save);
+                restoreCell(originalValue, originalHTML);
+            }
+        });
+    }
+
+    // 실시간 검색 필터링
+    function filterRows() {
+        const filter = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.getElementById('employeeTableBody').getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const text = rows[i].textContent || rows[i].innerText;
+            rows[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
+        }
+    }
+
+    // 신규 사원 등록 모달
+    function openCreateModal() {
+        document.getElementById('addEmployeeForm').reset();
+        employeeModal.show();
+    }
+
+    // 사원 등록 저장
+    function saveEmployee() {
+        const data = {
+            emp_id: document.getElementById('empId').value,
+            name: document.getElementById('empName').value,
+            dept: document.getElementById('empDept').value,
+            resident_number: document.getElementById('empRn').value,
+            position: document.getElementById('empPosition').value,
+            phone: document.getElementById('empPhone').value,
+            address: document.getElementById('empAddress').value,
+            join_date: document.getElementById('empJoinDate').value
+        };
+
+        if (!data.emp_id || !data.name || !data.dept || !data.join_date || !data.resident_number) {
+            alert("사원번호, 이름, 부서, 주민등록번호, 입사일은 필수 입력 항목입니다.");
+            return;
+        }
+
+        fetch("{% url 'hr:employee_create' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                alert("저장되었습니다.");
+                location.reload();
+            } else {
+                alert("오류 발생: " + res.message);
+            }
+        })
+        .catch(() => alert("서버 통신 오류가 발생했습니다."));
+    }
+
+    // 재직상태 변경
+    let statusReasonModal;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        statusReasonModal = new bootstrap.Modal(document.getElementById('statusReasonModal'));
+
+        // 취소 버튼: 모달 닫고 셀렉트 원복
+        document.getElementById('statusReasonCancelBtn').addEventListener('click', function () {
+            statusReasonModal.hide();
+            location.reload();
+        });
+    });
+
+    function updateStatus(empId, newStatus) {
+        if (newStatus === '휴직' || newStatus === '퇴사') {
+            const titleMap = { '휴직': '휴직 사유', '퇴사': '퇴사 사유' };
+            document.getElementById('statusReasonModalTitle').textContent = titleMap[newStatus];
+            document.getElementById('statusReasonInput').value = '';
+            statusReasonModal.show();
+
+            // 저장 버튼에 이벤트 등록 (중복 방지를 위해 교체)
+            const saveBtn = document.getElementById('statusReasonSaveBtn');
+            const newBtn = saveBtn.cloneNode(true);
+            saveBtn.parentNode.replaceChild(newBtn, saveBtn);
+
+            newBtn.addEventListener('click', function () {
+                const reason = document.getElementById('statusReasonInput').value.trim();
+                if (!reason) {
+                    alert('사유를 입력해주세요.');
+                    return;
+                }
+                submitStatusChange(empId, newStatus, reason);
+                statusReasonModal.hide();
+            });
+        } else {
+            submitStatusChange(empId, newStatus, '');
+        }
+    }
+
+    function submitStatusChange(empId, newStatus, reason) {
+        fetch("{% url 'hr:employee_update_status' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ emp_id: empId, status: newStatus, change_reason: reason })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                alert('상태 변경 실패: ' + data.message);
+                location.reload();
+            }
+        })
+        .catch(() => alert('서버 통신 오류'));
+    }
+</script>
+{% endblock %}

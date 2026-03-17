@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="fw-bold">부서 관리</h2>
+    <button class="btn btn-primary shadow-sm" onclick="openCreateModal()">
+        + 부서 등록
+    </button>
+</div>
+
+<!-- 부서 목록 테이블 -->
+<div class="card shadow mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle text-center" style="table-layout: fixed;">
+                <colgroup>
+                    <col style="width: 120px;">
+                    <col style="width: 200px;">
+                    <col style="width: 100px;">
+                    <col style="width: 100px;">
+                </colgroup>
+                <thead class="table-light">
+                    <tr>
+                        <th>부서코드</th>
+                        <th>부서명</th>
+                        <th>상태</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dept in departments %}
+                    <tr>
+                        <td>{{ dept.dept_id }}</td>
+                        <td class="fw-bold">{{ dept.dept_nm }}</td>
+                        <td>
+                            {% if dept.in_use %}
+                            <span class="badge bg-success bg-opacity-10 text-success">사용중</span>
+                            {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">미사용</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary"
+                                onclick="openUpdateModal('{{ dept.dept_id }}', '{{ dept.dept_nm }}', '{{ dept.in_use|yesno:'true,false' }}')">
+                                수정
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="py-4 text-muted">등록된 부서가 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 부서 등록/수정 모달 -->
+<div class="modal fade" id="deptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="deptModalTitle">부서 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deptForm">
+                    <input type="hidden" id="deptId">
+                    <div class="mb-3">
+                        <label class="form-label">부서명</label>
+                        <input type="text" class="form-control" id="deptName" placeholder="부서명을 입력하세요">
+                    </div>
+                    <div class="mb-3 form-check" id="useCheckDiv" style="display:none;">
+                        <input type="checkbox" class="form-check-input" id="deptInUse" checked>
+                        <label class="form-check-label" for="deptInUse">사용 여부</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let deptModal;
+    let isEditMode = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalEl = document.getElementById('deptModal');
+        deptModal = new bootstrap.Modal(modalEl);
+
+        // 폼에서 엔터 키 입력 시 기본 제출 동작을 막고 저장 함수를 호출합니다.
+        document.getElementById('deptForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            saveDepartment();
+        });
+
+        // 모달이 완전히 표시된 후 '부서명' 입력 필드에 포커스를 줍니다.
+        modalEl.addEventListener('shown.bs.modal', function () {
+            document.getElementById('deptName').focus();
+        });
+    });
+
+    function openCreateModal() {
+        isEditMode = false;
+        document.getElementById('deptModalTitle').innerText = "부서 등록";
+        document.getElementById('deptId').value = "";
+        document.getElementById('deptName').value = "";
+        document.getElementById('useCheckDiv').style.display = "none"; // 등록 시에는 무조건 사용중
+        deptModal.show();
+    }
+
+    function openUpdateModal(id, name, inUse) {
+        isEditMode = true;
+        document.getElementById('deptModalTitle').innerText = "부서 수정";
+        document.getElementById('deptId').value = id;
+        document.getElementById('deptName').value = name;
+        document.getElementById('useCheckDiv').style.display = "block";
+        document.getElementById('deptInUse').checked = (inUse === 'true');
+        deptModal.show();
+    }
+
+    function saveDepartment() {
+        const name = document.getElementById('deptName').value;
+        if (!name) {
+            alert("부서명을 입력해주세요.");
+            return;
+        }
+
+        const url = isEditMode ? "{% url 'hr:department_update' %}" : "{% url 'hr:department_create' %}";
+        const data = {
+            name: name
+        };
+
+        if (isEditMode) {
+            data.id = document.getElementById('deptId').value;
+            data.in_use = document.getElementById('deptInUse').checked;
+        }
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                alert("저장되었습니다.");
+                location.reload();
+            } else {
+                alert("오류 발생: " + res.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("서버 통신 오류");
+        });
+    }
+</script>
+{% endblock %}

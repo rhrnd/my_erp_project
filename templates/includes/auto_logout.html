@@ -1,0 +1,27 @@
+{% if user.is_authenticated %}
+<script>
+    // settings.py의 SESSION_COOKIE_AGE 값과 자동으로 연동됩니다.
+    // request.session.get_expiry_age는 현재 세션의 남은 시간을 초 단위로 반환합니다.
+    const idleLimit = {{ request.session.get_expiry_age }} * 1000;
+    let idleTimer;
+
+    function logoutUser() {
+        alert("보안을 위해 장시간 활동이 없어 자동 로그아웃 됩니다.");
+        // 실제 로그아웃 URL로 이동하여 세션을 삭제함
+        window.location.href = "{% url 'login' %}";
+    }
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(logoutUser, idleLimit);
+    }
+
+    // 사용자의 활동(마우스, 키보드, 터치)을 감지하면 타이머 리셋
+    window.onload = resetIdleTimer;
+    window.onmousemove = resetIdleTimer;
+    window.onmousedown = resetIdleTimer;
+    window.onclick = resetIdleTimer;
+    window.onkeydown = resetIdleTimer;
+    window.ontouchstart = resetIdleTimer;
+</script>
+{% endif %}

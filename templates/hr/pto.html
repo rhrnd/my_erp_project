@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* 사원 리스트와 동일한 테두리 스타일 */
+    .table-bordered th, .table-bordered td {
+        border: 1px solid #f1f5f9 !important;
+    }
+    .editable-cell {
+        cursor: pointer;
+    }
+    .editable-cell:hover {
+        background-color: #f0f9ff !important;
+    }
+    /* 남은 연차 음수 강조 */
+    .text-danger-soft {
+        color: #dc2626;
+        font-weight: 600;
+    }
+</style>
+
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="fw-bold"><i class="fas fa-calendar-check me-2"></i>{{ selected_year }}년 연차 관리</h2>
+    <form method="get" class="d-flex align-items-center gap-2">
+        {{ form.year }}
+        <button type="submit" class="btn btn-dark shadow-sm">조회</button>
+    </form>
+</div>
+
+<div class="card p-0 shadow">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle mb-0 text-center">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 120px;">구분</th>
+                    <th style="width: 120px;">이름</th>
+                    <th style="width: 160px;">사용가능한연차 (A)</th>
+                    <th style="width: 160px;">사용한연차 (B)</th>
+                    <th style="width: 160px;">남은연차 (A-B)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in pto_data %}
+                <tr>
+                    <td class="text-muted">{{ row.dept }}</td>
+                    <td class="fw-bold">{{ row.emp_nm }}</td>
+                    <td class="editable-cell"
+                        data-leave-id="{{ row.leave_id }}"
+                        data-value="{{ row.total_days }}">
+                        {{ row.total_days|floatformat:1 }}
+                    </td>
+                    <td>{{ row.used_days|floatformat:1 }}</td>
+                    <td class="fw-bold {% if row.remaining_days < 0 %}text-danger-soft{% endif %}">
+                        {{ row.remaining_days|floatformat:1 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="py-4 text-muted">재직 중인 사원이 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.editable-cell').forEach(cell => {
+        cell.addEventListener('click', function () {
+            if (cell.querySelector('input')) return;
+
+            const leaveId = cell.getAttribute('data-leave-id');
+            const original = cell.getAttribute('data-value');
+            const cellHeight = cell.offsetHeight;
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.5';
+            input.min = '0';
+            input.className = 'text-center';
+            input.style.cssText = `width:100%;height:${cellHeight}px;border:none;outline:none;background:transparent;font-size:14px;padding:0 4px;box-sizing:border-box;`;
+            input.value = original;
+
+            cell.style.padding = '0';
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+
+            const restore = (val) => {
+                cell.style.padding = '';
+                cell.setAttribute('data-value', val);
+                cell.innerText = parseFloat(val).toFixed(1);
+            };
+
+            const updateRemaining = (newTotal) => {
+                const row = cell.closest('tr');
+                const usedCell = row.cells[3];
+                const remainCell = row.cells[4];
+                const used = parseFloat(usedCell.innerText) || 0;
+                const remaining = parseFloat(newTotal) - used;
+                remainCell.innerText = remaining.toFixed(1);
+                remainCell.classList.toggle('text-danger-soft', remaining < 0);
+                remainCell.classList.toggle('fw-bold', true);
+            };
+
+            const save = () => {
+                const newVal = input.value;
+                if (newVal === original) { restore(original); return; }
+
+                fetch("{% url 'hr:pto_update' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ leave_id: leaveId, total_days: parseFloat(newVal) || 0 })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        restore(newVal);
+                        updateRemaining(newVal);
+                    } else {
+                        alert('저장 실패: ' + data.message);
+                        restore(original);
+                    }
+                });
+            };
+
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') input.blur();
+                if (e.key === 'Escape') { restore(original); }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

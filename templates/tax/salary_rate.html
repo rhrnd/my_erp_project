@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .rate-table {
+        font-size: 14px;
+    }
+    .rate-table th, .rate-table td {
+        border: 1px solid #e2e8f0 !important;
+        vertical-align: middle;
+    }
+    .editable-cell {
+        cursor: pointer;
+    }
+    .editable-cell:hover {
+        background-color: #f0f9ff !important;
+    }
+    .unit-badge {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-left: 2px;
+    }
+</style>
+
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="fw-bold mb-0">연도별 급여 요율 관리</h2>
+        <p class="text-muted mt-1" style="font-size: 13px;">셀을 클릭하면 바로 수정할 수 있습니다. 요율은 매년 1월 적용 기준으로 관리하세요.</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" onclick="openAddModal()">+ 연도 추가</button>
+</div>
+
+<div class="card shadow border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 text-center rate-table" id="rateTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;">적용 연도</th>
+                        <th>최저시급<span class="unit-badge">(원)</span></th>
+                        <th>월 통상근무시간<span class="unit-badge">(h)</span></th>
+                        <th>건강보험요율<span class="unit-badge">(%)</span></th>
+                        <th>노인장기요양<span class="unit-badge">(건강보험료 기준 %)</span></th>
+                        <th>국민연금요율<span class="unit-badge">(%)</span></th>
+                        <th>고용보험요율<span class="unit-badge">(%)</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rate in rates %}
+                    <tr>
+                        <td class="fw-bold">{{ rate.year }}년</td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="min_hourly_wage" data-value="{{ rate.min_hourly_wage }}">
+                            {{ rate.min_hourly_wage }}
+                        </td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="work_hours_monthly" data-value="{{ rate.work_hours_monthly }}">
+                            {{ rate.work_hours_monthly }}
+                        </td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="health_ins_rate" data-value="{{ rate.health_ins_rate }}">
+                            {{ rate.health_ins_rate }}
+                        </td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="longterm_care_rate" data-value="{{ rate.longterm_care_rate }}">
+                            {{ rate.longterm_care_rate }}
+                        </td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="pension_rate" data-value="{{ rate.pension_rate }}">
+                            {{ rate.pension_rate }}
+                        </td>
+                        <td class="editable-cell" data-id="{{ rate.pk }}" data-field="emp_ins_rate" data-value="{{ rate.emp_ins_rate }}">
+                            {{ rate.emp_ins_rate }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="py-5 text-muted">등록된 요율 데이터가 없습니다. 연도를 추가해주세요.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 연도 추가 모달 -->
+<div class="modal fade" id="addRateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">연도 추가</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">적용 연도 <span class="text-danger">*</span></label>
+                <input type="number" id="newYear" class="form-control" placeholder="예) 2026" min="2000" max="2100">
+                <small class="text-muted">기본값으로 요율이 등록되며, 이후 셀을 클릭해 수정할 수 있습니다.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="addYear()">추가</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('rateTable').addEventListener('click', function (e) {
+        const cell = e.target.closest('.editable-cell');
+        if (!cell || cell.querySelector('input')) return;
+
+        const originalValue = cell.getAttribute('data-value') || '0';
+        const field = cell.getAttribute('data-field');
+        const rateId = cell.getAttribute('data-id');
+        const cellHeight = cell.offsetHeight;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = 'any';
+        input.value = originalValue;
+        input.style.cssText = `width:100%; height:${cellHeight}px; border:none; outline:none; background:transparent; font-size:14px; padding:0 4px; box-sizing:border-box; text-align:center;`;
+
+        cell.style.padding = '0';
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+
+        const restore = (val) => {
+            cell.style.padding = '';
+            cell.setAttribute('data-value', val);
+            cell.innerText = val;
+        };
+
+        const save = () => {
+            const newValue = input.value;
+            if (newValue === originalValue) { restore(originalValue); return; }
+
+            fetch("{% url 'tax:salary_rate_update' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ rate_id: rateId, field: field, value: newValue })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') restore(newValue);
+                else { alert('저장 실패: ' + res.message); restore(originalValue); }
+            })
+            .catch(() => { alert('서버 통신 오류'); restore(originalValue); });
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') input.blur();
+            if (e.key === 'Escape') { input.removeEventListener('blur', save); restore(originalValue); }
+        });
+    });
+});
+
+let addModal;
+function openAddModal() {
+    addModal = addModal || new bootstrap.Modal(document.getElementById('addRateModal'));
+    document.getElementById('newYear').value = '';
+    addModal.show();
+    setTimeout(() => document.getElementById('newYear').focus(), 300);
+}
+
+function addYear() {
+    const year = document.getElementById('newYear').value;
+    if (!year) { alert('연도를 입력해주세요.'); return; }
+
+    fetch("{% url 'tax:salary_rate_create' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ year: parseInt(year) })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') { location.reload(); }
+        else alert('오류: ' + res.message);
+    })
+    .catch(() => alert('서버 통신 오류'));
+}
+
+document.getElementById('newYear').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addYear();
+});
+</script>
+{% endblock %}

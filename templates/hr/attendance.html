@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+{% block content %}
+<style>
+    .atnd-table {
+        font-size: 11px;
+        border-collapse: separate !important;
+        border-spacing: 0;
+        margin-bottom: 0 !important;
+        table-layout: fixed;
+        border-top: 1px solid #dee2e6;
+        border-left: 1px solid #dee2e6;
+        width: 100%;
+    }
+    /* 테이블 하단에 생기는 미세한 간격 제거 */
+    .table-responsive {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        display: block; /* 여백 방지 */
+    }
+
+    /* 카드 바디 패딩 및 카드 하단 마진 제거 */
+    .card { margin-bottom: 0 !important; }
+    .card-body.p-0 { padding: 0 !important; }
+
+    .atnd-table th, .atnd-table td {
+        box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6;
+        padding: 2px !important;
+        height: 28px;
+        vertical-align: middle;
+    }
+    .atnd-table td {
+        height: 28px;
+        line-height: 1;
+    }
+    /* 헤더 및 구분 열 배경색 — Bootstrap table-light 통일 */
+    .atnd-table thead th, .bg-light-gray {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    /* 주말 배경색 */
+    .bg-weekend {
+        background-color: #fde8e8 !important;
+    }
+    /* 공휴일 배경색 */
+    .bg-holiday {
+        background-color: #fde8e8 !important;
+    }
+    /* 공휴일 헤더: 날짜 숫자를 빨간색으로 */
+    .atnd-table thead th.bg-holiday {
+        color: #dc2626 !important;
+    }
+    /* 수정 가능한 셀에 마우스를 올렸을 때 */
+    {% comment %} .editable-cell:hover {
+        background-color: #fcf6c6 !important; /* 연한 노란색 강조 */
+    } {% endcomment %}
+
+    /* 팝업 레이어의 위치를 잡기 위한 설정 */
+    .position-relative {
+        position: relative !important;
+    }
+
+    /* 서버에서 보내줄 attendance-popover 클래스에 대한 예비 스타일 */
+    .attendance-popover {
+        min-width: 140px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: white;
+        padding: 8px;
+    }
+</style>
+
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <h2 class="fw-bold"><i class="fas fa-money-check-alt me-2"></i>{{ selected_year }}년 {{ selected_month }}월 근태 관리</h2>
+    <form method="get" class="d-flex align-items-center gap-2">
+        {{ form.year }}
+        {{ form.month }}
+        <button type="submit" class="btn btn-dark shadow-sm">조회</button>
+        {% if can_export %}
+        <button type="button" class="btn btn-outline-success shadow-sm"><i class="fas fa-file-excel me-1"></i> 엑셀</button>
+        {% endif %}
+    </form>
+</div>
+
+<div class="card shadow border-0 overflow-hidden">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered text-center atnd-table" style="min-width: 1500px; white-space: nowrap;">
+                <thead>
+<tr>
+                        <th style="width: 60px;">부서</th>
+                        <th style="width: 80px;">성 명</th>
+                        <th style="width: 60px;">구분</th>
+                        {% for d in days_range %}
+                        <th style="width: 35px;" class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %}">{{ d }}</th>
+                        {% endfor %}
+                        <th style="width: 70px;">합 계</th>
+                        <th style="width: 70px;">누 계</th>
+                        <th style="width: 100px;">비 고</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in attendance_data %}
+                    <tr>
+                        <td rowspan="3" class="sticky-left">{{ employee.dept }}</td>
+                        <td rowspan="3" class="fw-bold sticky-left">{{ employee.name }}</td>
+                        <td class="bg-light-gray">정상</td>
+                        {% for d in days_range %}
+                        <td class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %} editable-cell"
+                            style="cursor: pointer;"
+                            hx-get="/hr/attendance/edit/{{ employee.id }}/{{ selected_year }}/{{ selected_month }}/{{ d }}/normal/"
+                            hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+                            {{ employee.daily|get_item:d|get_item:'normal'|default:'' }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-normal-{{ employee.id }}" class="fw-bold">{{ employee.total_normal|floatformat:1 }}</td>
+                        <td id="cum-normal-{{ employee.id }}" class="fw-bold">{{ employee.cum_normal|floatformat:1 }}</td>
+                        <td rowspan="3"></td> 
+                    </tr>
+
+                    <tr>
+                        <td class="bg-light-gray">O/T</td>
+                        {% for d in days_range %}
+                        <td class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %} editable-cell"
+                            hx-get="/hr/attendance/edit/{{ employee.id }}/{{ selected_year }}/{{ selected_month }}/{{ d }}/ot/"
+                            hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+                            {{ employee.daily|get_item:d|get_item:'ot'|default:'' }}
+                            {% comment %} {% with log=employee.daily|get_item:d %}
+                                {{ log.status_text|default:'' }} {{ log.ot_hours|default:'' }}
+                            {% endwith %} {% endcomment %}
+                        </td>
+                        {% endfor %}
+                        
+                        <td id="total-ot-{{ employee.id }}" class="fw-bold">
+                            {{ employee.total_ot|floatformat:1 }}
+                        </td>
+                        <td id="cum-ot-{{ employee.id }}" class="fw-bold">{{ employee.cum_ot|floatformat:1 }}</td>
+                    </tr>
+
+                    <tr>
+                        <td class="bg-light-gray">토일근무</td>
+                        {% for d in days_range %}
+                        <td class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %} editable-cell"
+                            style="cursor: pointer;"
+                            hx-get="/hr/attendance/edit/{{ employee.id }}/{{ selected_year }}/{{ selected_month }}/{{ d }}/weekend/"
+                            hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+                            {{ employee.daily|get_item:d|get_item:'weekend'|default:'' }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-weekend-{{ employee.id }}" class="fw-bold">{{ employee.total_holiday|floatformat:1 }}</td>
+                        <td id="cum-holiday-{{ employee.id }}" class="fw-bold">{{ employee.cum_holiday|floatformat:1 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

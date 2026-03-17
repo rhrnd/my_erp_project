@@ -1,0 +1,187 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>DST ERP System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" as="style" crossorigin="crossorigin" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"/>
+
+    <style>
+      *, *::before, *::after {
+        font-family: 'Pretendard', sans-serif !important;
+      }
+      :root {
+        --accent-color: #3b83f6ee;
+        --body-bg: #f1f5f9;
+        --text-muted: #94a3b8;
+      }
+
+      body {
+        font-family: 'Pretendard', sans-serif;
+        background-color: var(--body-bg);
+        color: #334155;
+        font-size: 16px;
+        /* 전체 기본 글자 크기 상향 */
+        line-height: 1.6;
+      }
+
+      table {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /*attendance 스타일*/
+      /* 엑셀 스타일 근태 테이블 커스텀 */
+      .attendance-table th, .attendance-table td {
+          border: 1px solid #dee2e6 !important;
+          padding: 4px 8px !important;
+      }
+
+      /* 부서, 직급, 이름, 구분 열 왼쪽 고정 */
+      .sticky-col {
+          position: sticky;
+          background-color: #f8f9fa !important;
+          z-index: 2;
+      }
+      .col-dept { left: 0; min-width: 80px; }
+      .col-rank { left: 80px; min-width: 60px; }
+      .col-name { left: 140px; min-width: 80px; }
+      .col-type { left: 220px; min-width: 50px; border-right: 2px solid #adb5bd !important; }
+
+      /* 상태별 색상 (엑셀 양식 반영) */
+      .state-late { background-color: #fff9c4 !important; color: #f57f17 !important; } /* 지각: 노랑 */
+      .state-vacation { background-color: #fce4ec !important; color: #d81b60 !important; } /* 연차: 분홍 */
+      .state-business { background-color: #e8f5e9 !important; color: #2e7d32 !important; } /* 출장: 초록 */
+      .bg-sunday { background-color: #fff1f0 !important; } /* 일요일 배경 */
+
+      /* 헤더 상단 고정 */
+      .attendance-table thead th {
+          position: sticky;
+          top: 0;
+          z-index: 3;
+          background-color: #f8f9fa;
+      }
+
+      /* 인사 관리 드롭다운 가로 배치 (데스크탑) */
+      @media (min-width: 992px) {
+        .dropdown-menu-horizontal.show {
+          display: flex !important;
+          flex-direction: row;
+          min-width: max-content;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 상단 네비게이션 바 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold ms-3" href="/">DST</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <!-- 대시보드 -->
+            <li class="nav-item">
+              <a class="nav-link {% if '/home/' in request.path %}active fw-bold{% endif %}" href="{% url 'home' %}">대시보드</a>
+            </li>
+
+            <!-- 인사 관리 (드롭다운) -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle {% if '/hr/' in request.path %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                인사 관리
+              </a>
+              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-horizontal">
+                <li><a class="dropdown-item {% if 'hr/list' in request.path %}active{% endif %}" href="{% url 'hr:hr_list' %}">사원 리스트</a></li>
+                <li><a class="dropdown-item {% if 'hr/department' in request.path %}active{% endif %}" href="{% url 'hr:department_list' %}">부서 관리</a></li>
+                <li><a class="dropdown-item {% if 'hr/salary' in request.path %}active{% endif %}" href="{% url 'hr:salary' %}">급여 관리</a></li>
+                <li><a class="dropdown-item {% if 'hr/attendance' in request.path %}active{% endif %}" href="{% url 'hr:attendance' %}">근태 관리</a></li>
+                <li><a class="dropdown-item {% if 'hr/pto' in request.path %}active{% endif %}" href="{% url 'hr:pto' %}">연차 관리</a></li>
+              </ul>
+            </li>
+
+            <!-- 재고 관리 (드롭다운) -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle {% if '/scm/' in request.path %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                재고 관리
+              </a>
+              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-horizontal">
+                <li><a class="dropdown-item {% if 'scm/list' in request.path %}active{% endif %}" href="{% url 'scm:scm_list' %}">제품 조회</a></li>
+                <li><a class="dropdown-item {% if 'scm/history' in request.path %}active{% endif %}" href="{% url 'scm:scm_history' %}">제품 내역</a></li>
+              </ul>
+            </li>
+
+            <!-- 세금 관리 -->
+            <li class="nav-item">
+              <a class="nav-link {% if '/tax/' in request.path %}active fw-bold{% endif %}" href="{% url 'tax:salary_rate' %}">세금 관리</a>
+            </li>
+
+            <!-- 시스템 관리 (관리자 전용) -->
+            {% if user.is_staff %}
+            <li class="nav-item">
+              <a class="nav-link {% if '/audit/' in request.path %}active fw-bold{% endif %}" href="{% url 'audit:audit_list' %}">시스템 작업 내역</a>
+            </li>
+            {% endif %}
+          </ul>
+
+          <!-- 우측 사용자 정보 및 로그아웃 -->
+          <div class="d-flex align-items-center">
+            {% if user.is_authenticated %}
+              <span class="text-white me-3">
+                <span class="fw-bold">{{ user.last_name }}{{ user.first_name|default:user.username }}</span>님
+              </span>
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-light">로그아웃</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="container-fluid py-4 px-5">
+      {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+      // Django의 CSRF 보호 기능을 HTMX와 함께 사용하기 위한 스크립트입니다.
+      // 이 코드는 HTMX로 POST, PUT, DELETE 등의 요청을 보낼 때
+      // 자동으로 CSRF 토큰을 요청 헤더에 포함시켜 403 Forbidden 오류를 방지합니다.
+      
+      // 1. 'csrftoken' 쿠키에서 CSRF 토큰 값을 가져오는 함수 (Django 공식 문서 권장 방식)
+      function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                      break;
+                  }
+              }
+          }
+          return cookieValue;
+      }
+
+      // 2. HTMX 요청이 생성될 때마다 CSRF 토큰을 'X-CSRFToken' 헤더에 추가
+      document.body.addEventListener('htmx:configRequest', (event) => {
+          event.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Bootstrap & Custom JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 자동 로그아웃 스크립트 포함 -->
+    {% include 'includes/auto_logout.html' %}
+  </body>
+</html>

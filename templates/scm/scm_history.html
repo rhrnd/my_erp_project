@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="fw-bold">제품 내역 조회</h2>
+        <p class="text-muted mb-0">제품별 입고 및 출고 이력을 조회합니다.</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#inoutModal">
+        + 입/출고 등록
+    </button>
+</div>
+
+<!-- 검색 및 필터 영역 -->
+<div class="card p-4 mb-4 bg-light border-0">
+    <form class="row g-3 align-items-end" onsubmit="return false;">
+        <div class="col-md-4">
+            <label for="searchProduct" class="form-label fw-bold">제품 검색</label>
+            <!-- URL 파라미터로 넘어온 code가 있으면 value에 넣어줌 -->
+            <input type="text" class="form-control" id="searchProduct" placeholder="제품명 또는 코드" value="{{ request.GET.code|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-primary w-100" onclick="filterRows()">조회</button>
+        </div>
+    </form>
+</div>
+
+<!-- 내역 테이블 -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-white">
+        <h6 class="m-0 font-weight-bold text-primary">입출고 내역 리스트</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th>제품 코드</th>
+                        <th>제품명</th>
+                        <th>규격</th>
+                        <th>입고/출고</th>
+                        <th>사용처/비고</th>
+                        <th>수량</th>
+                        <th>입/출고일</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr>
+                        <td>{{ item.mat_id }}</td>
+                        <td class="fw-bold">{{ item.mat_nm }}</td>
+                        <td>{{ item.mat_spec|default:"-" }}</td>
+                        <td><span class="badge bg-{{ item.class }} bg-opacity-10 text-{{ item.class }}">{{ item.type }}</span></td>
+                        <td>{{ item.desc }}</td>
+                        <td class="text-{{ item.class }} fw-bold">
+                            {% if item.type == '입고' %}+{% else %}-{% endif %}{{ item.qty|floatformat:0 }}
+                        </td>
+                        <td class="text-muted">{{ item.date|date:"Y-m-d" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">데이터가 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 입/출고 등록 모달 -->
+<div class="modal fade" id="inoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">입/출고 등록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="inoutForm">
+                    <!-- 구분 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">구분</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ioType" id="typeIn" value="in" checked onchange="toggleFields()">
+                                <label class="form-check-label" for="typeIn">입고 (구매)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ioType" id="typeOut" value="out" onchange="toggleFields()">
+                                <label class="form-check-label" for="typeOut">출고 (사용)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 공통 필드 -->
+                    <div class="mb-3">
+                        <label class="form-label">제품 선택 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="ioMat" onchange="updateStock()">
+                            <option value="">제품을 선택하세요</option>
+                            {% for mat in materials %}
+                            <option value="{{ mat.mat_id }}" data-stock="{{ mat.mat_current_stock|floatformat:0 }}">{{ mat.mat_nm }} ({{ mat.mat_spec|default:'' }})</option>
+                            {% endfor %}
+                        </select>
+                        <div id="stockInfo" class="text-muted small mt-1" style="display:none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">담당자</label>
+                        <input type="text" class="form-control bg-light" value="{{ user.last_name }}{{ user.first_name|default:user.username }}" readonly>
+                        {% if not current_emp %}
+                        <div class="text-danger small mt-1">⚠ 이 계정에 연결된 사원 정보가 없습니다. 관리자에게 문의하세요.</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">수량 <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="ioQty" min="0.01" step="any" placeholder="수량 입력">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" id="dateLabel">입고 일자 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="ioDate">
+                    </div>
+
+                    <!-- 입고 전용 필드 -->
+                    <div id="inboundFields">
+                        <div class="mb-3">
+                            <label class="form-label">구매 단가 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="ioPrice" min="0" step="any" placeholder="단가 입력">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="registerInOut()">등록</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 실시간 검색 필터링 (DB 연동 전 클라이언트 측 구현)
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchProduct');
+        const rows = document.querySelectorAll("tbody tr");
+
+        // 전역 함수로 만들어 버튼 클릭 시에도 호출 가능하게 함
+        window.filterRows = function() {
+            const query = searchInput.value.toLowerCase();
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? "" : "none";
+            });
+        }
+
+        // 입력할 때마다 필터링 실행
+        searchInput.addEventListener('input', filterRows);
+
+        // 페이지 로드 시 초기 상태 반영 (URL 파라미터 등으로 값이 있을 경우)
+        filterRows();
+        
+        // 초기 필드 설정
+        toggleFields();
+    });
+
+    // 제품 선택 시 현재고 표시
+    function updateStock() {
+        const select = document.getElementById('ioMat');
+        const stockInfo = document.getElementById('stockInfo');
+        const selected = select.options[select.selectedIndex];
+        if (selected.value) {
+            stockInfo.style.display = 'block';
+            stockInfo.textContent = `현재고: ${selected.dataset.stock}`;
+        } else {
+            stockInfo.style.display = 'none';
+        }
+    }
+
+    // 입고/출고 선택에 따른 필드 표시/숨김
+    function toggleFields() {
+        const isInbound = document.getElementById('typeIn').checked;
+        const inboundFields = document.getElementById('inboundFields');
+        const dateLabel = document.getElementById('dateLabel');
+
+        if (isInbound) {
+            inboundFields.style.display = 'block';
+            dateLabel.innerText = "입고 일자";
+        } else {
+            inboundFields.style.display = 'none';
+            dateLabel.innerText = "출고 일자";
+        }
+    }
+
+    // 등록 요청
+    function registerInOut() {
+        const type = document.querySelector('input[name="ioType"]:checked').value;
+        const matSelect = document.getElementById('ioMat');
+        const matId = matSelect.value;
+        const qty = document.getElementById('ioQty').value;
+        const date = document.getElementById('ioDate').value;
+        const price = document.getElementById('ioPrice').value;
+
+        if (!matId) {
+            alert("제품을 선택해주세요.");
+            return;
+        }
+        if (!qty || parseFloat(qty) <= 0) {
+            alert("수량을 올바르게 입력해주세요.");
+            return;
+        }
+        if (type === 'out') {
+            const currentStock = parseInt(matSelect.options[matSelect.selectedIndex].dataset.stock);
+            if (parseFloat(qty) > currentStock) {
+                alert("제품 수량이 부족합니다.");
+                return;
+            }
+        }
+        if (!date) {
+            alert("날짜는 필수 입력 항목입니다.");
+            return;
+        }
+        if (type === 'in' && (!price || parseFloat(price) < 0)) {
+            alert("입고 시 구매 단가는 필수입니다.");
+            return;
+        }
+
+        const data = { type: type, mat_id: matId, qty: qty, date: date, price: price };
+
+        fetch("{% url 'scm:scm_inout_create' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                alert("등록되었습니다.");
+                location.reload();
+            } else {
+                alert("오류 발생: " + res.message);
+            }
+        });
+    }
+</script>
+{% endblock %}

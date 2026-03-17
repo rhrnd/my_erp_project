@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="pt-4 pb-2 mb-4">
+    <h2 class="fw-bold">시스템 작업 내역</h2>
+    <p class="text-muted">시스템 내의 주요 데이터 변경 이력을 조회합니다. (관리자 전용)</p>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th>일시</th>
+                        <th>작업자</th>
+                        <th>카테고리</th>
+                        <th>작업 유형</th>
+                        <th>대상</th>
+                        <th>IP 주소</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td class="fw-bold">{{ log.user.last_name }}{{ log.user.first_name|default:log.user.username }}</td>
+                        <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.category }}</span></td>
+                        <td>
+                            {% if log.action == 'CREATE' %}<span class="text-primary fw-bold">작성</span>
+                            {% elif log.action == 'UPDATE' %}<span class="text-warning fw-bold">수정</span>
+                            {% elif log.action == 'DELETE' %}<span class="text-danger fw-bold">삭제</span>
+                            {% else %}{{ log.action }}{% endif %}
+                        </td>
+                        <td>{{ log.target_name }}</td>
+                        <td class="text-muted small">{{ log.ip_address }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">기록된 작업 내역이 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
