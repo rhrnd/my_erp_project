@@ -13,7 +13,7 @@ __pycache__/
 venv/
 env/
 .venv/
-
+requirement.txt
 # ── Django ────────────────────────────────────────────────────────────────────
 *.log
 db.sqlite3
