@@ -82,13 +82,22 @@
     </form>
 </div>
 
+<div class="d-flex justify-content-end mb-2">
+    <select id="companyFilter" class="form-select form-select-sm" style="width: auto;">
+        <option value="" {% if not selected_company %}selected{% endif %}>전체</option>
+        {% for comp in companies %}
+        <option value="{{ comp }}" {% if selected_company == comp %}selected{% endif %}>{{ comp }}</option>
+        {% endfor %}
+    </select>
+</div>
+
 <div class="card shadow border-0 overflow-hidden">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-bordered text-center atnd-table" style="min-width: 1500px; white-space: nowrap;">
                 <thead>
 <tr>
-                        <th style="width: 60px;">부서</th>
+                        <th style="width: 80px;">부서</th>
                         <th style="width: 80px;">성 명</th>
                         <th style="width: 60px;">구분</th>
                         {% for d in days_range %}
@@ -102,7 +111,10 @@
                 <tbody>
                     {% for employee in attendance_data %}
                     <tr>
-                        <td rowspan="3" class="sticky-left">{{ employee.dept }}</td>
+                        <td rowspan="3" class="sticky-left text-center" style="width: 80px; white-space: normal; line-height: 1.4;">
+                            <div class="text-muted" style="font-size: 10px;">[{{ employee.dept.dept_comp }}]</div>
+                            <div>{{ employee.dept.dept_nm }}</div>
+                        </td>
                         <td rowspan="3" class="fw-bold sticky-left">{{ employee.name }}</td>
                         <td class="bg-light-gray">정상</td>
                         {% for d in days_range %}
@@ -156,4 +168,15 @@
         </div>
     </div>
 </div>
+<script>
+    document.getElementById('companyFilter').addEventListener('change', function () {
+        const url = new URL(window.location.href);
+        if (this.value) {
+            url.searchParams.set('company', this.value);
+        } else {
+            url.searchParams.delete('company');
+        }
+        window.location.href = url.toString();
+    });
+</script>
 {% endblock %}

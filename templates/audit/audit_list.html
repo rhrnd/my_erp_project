@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_tags %}
 
 {% block content %}
 <div class="pt-4 pb-2 mb-4">
@@ -12,12 +13,13 @@
             <table class="table table-hover mb-0 align-middle text-center">
                 <thead class="table-light">
                     <tr>
-                        <th>일시</th>
-                        <th>작업자</th>
-                        <th>카테고리</th>
-                        <th>작업 유형</th>
-                        <th>대상</th>
-                        <th>IP 주소</th>
+                        <th style="width: 160px;">일시</th>
+                        <th style="width: 80px;">작업자</th>
+                        <th style="width: 130px;">카테고리</th>
+                        <th style="width: 60px;">유형</th>
+                        <th style="width: 120px;">대상</th>
+                        <th class="text-start">변경 내역</th>
+                        <th style="width: 110px;">IP 주소</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -25,19 +27,68 @@
                     <tr>
                         <td class="text-muted small">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
                         <td class="fw-bold">{{ log.user.last_name }}{{ log.user.first_name|default:log.user.username }}</td>
-                        <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ log.category }}</span></td>
                         <td>
-                            {% if log.action == 'CREATE' %}<span class="text-primary fw-bold">작성</span>
-                            {% elif log.action == 'UPDATE' %}<span class="text-warning fw-bold">수정</span>
-                            {% elif log.action == 'DELETE' %}<span class="text-danger fw-bold">삭제</span>
-                            {% else %}{{ log.action }}{% endif %}
+                            {% with parts=log.category|split:'/' %}
+                            <div class="text-muted small">{{ parts|first }}</div>
+                            {% if parts|length > 1 %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ parts|last }}</span>
+                            {% endif %}
+                            {% endwith %}
                         </td>
-                        <td>{{ log.target_name }}</td>
-                        <td class="text-muted small">{{ log.ip_address }}</td>
+                        <td>
+                            {% if log.action == 'CREATE' %}<span class="badge bg-primary bg-opacity-10 text-primary">등록</span>
+                            {% elif log.action == 'UPDATE' %}<span class="badge bg-warning bg-opacity-10 text-warning">수정</span>
+                            {% elif log.action == 'DELETE' %}<span class="badge bg-danger bg-opacity-10 text-danger">삭제</span>
+                            {% elif log.action == 'LOGIN' %}<span class="badge bg-success bg-opacity-10 text-success">로그인</span>
+                            {% elif log.action == 'LOGOUT' %}<span class="badge bg-secondary bg-opacity-10 text-secondary">로그아웃</span>
+                            {% else %}<span class="badge bg-light text-dark">{{ log.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ log.target_name|default:"-" }}</td>
+                        <td class="text-start small">
+                            {% if log.changes %}
+                                {% for key, val in log.changes.items %}
+                                    {% if val|is_dict %}
+                                        {# UPDATE: 이전 → 이후 형식 #}
+                                        {% if val.이전 != val.이후 %}
+                                        <div>
+                                            <span class="text-muted">{{ key|field_label }}:</span>
+                                            {% if key == 'dept' %}
+                                                <span class="text-danger">{{ dept_map|get_item:val.이전|default:val.이전|default:"(없음)" }}</span>
+                                                <span class="text-muted mx-1">→</span>
+                                                <span class="text-success">{{ dept_map|get_item:val.이후|default:val.이후|default:"(없음)" }}</span>
+                                            {% else %}
+                                                <span class="text-danger">{{ val.이전|default:"(없음)" }}</span>
+                                                <span class="text-muted mx-1">→</span>
+                                                <span class="text-success">{{ val.이후|default:"(없음)" }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
+                                        {# CREATE: 필드: 값 형식 #}
+                                        {% if val and key != '메시지' %}
+                                        <div>
+                                            <span class="text-muted">{{ key|field_label }}:</span>
+                                            {% if key == 'dept' %}
+                                                <span>{{ dept_map|get_item:val|default:val }}</span>
+                                            {% else %}
+                                                <span>{{ val }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% elif key == '메시지' %}
+                                        <span class="text-muted">{{ val }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ log.ip_address|default:"-" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">기록된 작업 내역이 없습니다.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">기록된 작업 내역이 없습니다.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

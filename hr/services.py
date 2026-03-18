@@ -55,9 +55,12 @@ def sync_ot_from_attendance(target_month: str, year: int, month: int) -> None:
         Salary.objects.bulk_update(to_update, ['ot_hours'])
 
 
-def get_salary_totals(target_month: str) -> dict:
+def get_salary_totals(target_month: str, company: str = None) -> dict:
     """해당 월 전체 급여 합계를 집계하여 반환한다 (footer/API 공용)."""
-    return Salary.objects.filter(salary_month=target_month).aggregate(
+    qs = Salary.objects.filter(salary_month=target_month)
+    if company:
+        qs = qs.filter(emp__dept__dept_comp=company)
+    return qs.aggregate(
         base_amt=Sum('base_amt'),
         pos_allowance=Sum('pos_allowance'),
         exp_allowance=Sum('exp_allowance'),

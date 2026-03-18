@@ -28,9 +28,19 @@
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card p-3 border-0 shadow-sm bg-light">
-            <form class="row g-2" onsubmit="return false;">
+            <form class="row g-2 align-items-center" onsubmit="return false;">
                 <div class="col-md-4">
                     <input type="text" id="searchInput" class="form-control" placeholder="이름, 부서, 직급 검색..." oninput="filterRows()">
+                </div>
+                <div class="col-auto d-flex gap-3 ms-2">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="chkDst" checked onchange="filterRows()">
+                        <label class="form-check-label" for="chkDst">DST</label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="chkJsystem" checked onchange="filterRows()">
+                        <label class="form-check-label" for="chkJsystem">Jsystem</label>
+                    </div>
                 </div>
             </form>
         </div>
@@ -43,15 +53,16 @@
                 <table class="table table-hover table-bordered align-middle mb-0 text-center">
                 <thead class="table-light">
                     <tr>
-                        <th class="text-nowrap-cell" style="width: 120px;">입사일자</th>
-                        <th class="text-nowrap-cell" style="width: 100px;">사원번호</th>
-                        <th class="text-nowrap-cell" style="width: 100px;">성명</th>
-                        <th class="text-nowrap-cell" style="width: 120px;">부서명</th>
-                        <th class="text-nowrap-cell" style="width: 80px;">직급명</th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="0">소속회사명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="1">입사일자 <i class="sort-icon fas fa-sort-up ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="2">사원번호 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="3">성명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="4">부서명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 80px; cursor:pointer;" data-col="5">직급명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
                         <th class="text-nowrap-cell" style="width: 140px;">전화번호</th>
                         <th class="text-nowrap-cell" style="width: 140px;">주민번호</th>
                         <th style="min-width: 200px;">주소</th>
-                        <th class="text-nowrap-cell" style="width: 120px;">퇴사일</th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="9">퇴사일 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
                         <th class="text-nowrap-cell" style="width: 100px;">재직상태</th>
                     </tr>
                 </thead>
@@ -60,20 +71,23 @@
                     <tr data-emp-no="{{ emp.emp_no }}"
                         data-emp-nm="{{ emp.emp_nm }}"
                         data-dept-id="{{ emp.dept.dept_id }}"
+                        data-dept-comp="{{ emp.dept.dept_comp }}"
                         data-emp-rn="{{ emp.emp_rn }}"
                         data-emp-pos="{{ emp.emp_pos|default:'' }}"
                         data-emp-tel="{{ emp.emp_tel|default:'' }}"
                         data-emp-add="{{ emp.emp_add|default:'' }}"
-                        data-emp-hire="{{ emp.emp_hire|date:'Y-m-d' }}">
+                        data-emp-hire="{{ emp.emp_hire|date:'Y-m-d' }}"
+                        data-emp-retire="{{ emp.emp_retire_dt|date:'Y-m-d'|default:'' }}">
+                        <td class="text-nowrap-cell">{{ emp.dept.dept_comp }}</td>
                         <td class="text-muted text-nowrap-cell editable-cell" data-field="emp_hire" data-value="{{ emp.emp_hire|date:'Y-m-d' }}">{{ emp.emp_hire }}</td>
                         <td class="text-nowrap-cell">{{ emp.emp_no }}</td>
                         <td class="fw-bold text-nowrap-cell editable-cell" data-field="emp_nm" data-value="{{ emp.emp_nm }}">{{ emp.emp_nm }}</td>
-                        <td class="text-nowrap-cell editable-cell" data-field="dept" data-value="{{ emp.dept.dept_id }}"><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ emp.dept.dept_nm }}</span></td>
+                        <td class="text-nowrap-cell editable-cell" data-field="dept" data-value="{{ emp.dept.dept_id }}">{{ emp.dept.dept_nm }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="emp_pos" data-value="{{ emp.emp_pos|blank }}">{{ emp.emp_pos|blank }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="emp_tel" data-value="{{ emp.emp_tel|blank }}">{{ emp.emp_tel|blank }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="emp_rn" data-value="{{ emp.emp_rn }}">{{ emp.emp_rn }}</td>
                         <td class="text-start text-truncate editable-cell" style="max-width: 300px;" title="{{ emp.emp_add|blank }}" data-field="emp_add" data-value="{{ emp.emp_add|blank }}">{{ emp.emp_add|blank }}</td>
-                        <td class="text-nowrap-cell">{{ emp.emp_retire_dt|default_if_none:"" }}</td>
+                        <td class="text-nowrap-cell editable-cell" data-field="emp_retire_dt" data-value="{{ emp.emp_retire_dt|date:'Y-m-d'|default:'' }}">{{ emp.emp_retire_dt|default_if_none:"" }}</td>
                         <td onclick="event.stopPropagation()">
                             <select class="form-select form-select-sm" onchange="updateStatus('{{ emp.emp_no }}', this.value)">
                                 <option value="재직" {% if emp.emp_stat == '재직' %}selected{% endif %}>재직</option>
@@ -84,7 +98,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="py-4 text-muted">등록된 사원이 없습니다.</td>
+                        <td colspan="11" class="py-4 text-muted">등록된 사원이 없습니다.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -115,7 +129,7 @@
 
 <!-- 사원 등록 모달 -->
 <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold">신규 사원 등록</h5>
@@ -126,11 +140,20 @@
                     <div class="mb-3"><label class="form-label">사원번호 <span class="text-danger">*</span></label><input type="text" class="form-control" id="empId"></div>
                     <div class="mb-3"><label class="form-label">이름 <span class="text-danger">*</span></label><input type="text" class="form-control" id="empName"></div>
                     <div class="mb-3">
+                        <label class="form-label">소속회사명 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="empComp" onchange="filterDeptByComp()">
+                            <option value="">회사를 선택하세요</option>
+                            {% for comp in companies %}
+                            <option value="{{ comp }}">{{ comp }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">부서 <span class="text-danger">*</span></label>
                         <select class="form-select" id="empDept">
-                            <option value="">부서를 선택하세요</option>
+                            <option value="">회사를 먼저 선택하세요</option>
                             {% for dept in departments %}
-                            <option value="{{ dept.dept_id }}">{{ dept.dept_nm }}</option>
+                            <option value="{{ dept.dept_id }}" data-comp="{{ dept.dept_comp }}">{{ dept.dept_nm }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -154,7 +177,7 @@
     // 부서 목록 (인라인 편집용)
     const departmentList = [
         {% for dept in departments %}
-        { id: "{{ dept.dept_id }}", name: "{{ dept.dept_nm }}" }{% if not forloop.last %},{% endif %}
+        { id: "{{ dept.dept_id }}", name: "{{ dept.dept_nm }}", comp: "{{ dept.dept_comp }}" }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
 
@@ -193,14 +216,15 @@
         if (field === 'dept') {
             input = document.createElement('select');
             input.className = 'form-select form-select-sm';
-            departmentList.forEach(dept => {
+            const rowComp = row.dataset.deptComp || '';
+            departmentList.filter(d => d.comp === rowComp).forEach(dept => {
                 const opt = document.createElement('option');
                 opt.value = dept.id;
                 opt.textContent = dept.name;
                 if (dept.id == originalValue) opt.selected = true;
                 input.appendChild(opt);
             });
-        } else if (field === 'emp_hire') {
+        } else if (field === 'emp_hire' || field === 'emp_retire_dt') {
             input = document.createElement('input');
             input.type = 'date';
             input.max = '9999-12-31';
@@ -216,9 +240,10 @@
         input.style.border = 'none';
         input.style.outline = 'none';
         input.style.backgroundColor = 'transparent';
-        input.style.fontSize = '13px';
+        input.style.fontSize = 'inherit';
         input.style.padding = '0 4px';
         input.style.boxSizing = 'border-box';
+        input.style.textAlign = 'center';
 
         const originalHTML = cell.innerHTML;
         cell.style.padding = '0';
@@ -249,6 +274,7 @@
                 phone: field === 'emp_tel' ? newValue : row.getAttribute('data-emp-tel'),
                 address: field === 'emp_add' ? newValue : row.getAttribute('data-emp-add'),
                 join_date: field === 'emp_hire' ? newValue : row.getAttribute('data-emp-hire'),
+                retire_date: field === 'emp_retire_dt' ? newValue : row.getAttribute('data-emp-retire'),
             };
 
             fetch("{% url 'hr:employee_update' %}", {
@@ -271,6 +297,7 @@
                         emp_tel: 'data-emp-tel',
                         emp_add: 'data-emp-add',
                         emp_hire: 'data-emp-hire',
+                        emp_retire_dt: 'data-emp-retire',
                     };
                     if (attrMap[field]) row.setAttribute(attrMap[field], newValue);
                     cell.setAttribute('data-value', newValue);
@@ -279,7 +306,7 @@
                     if (field === 'dept') {
                         const dept = departmentList.find(d => d.id == newValue);
                         const deptName = dept ? dept.name : newValue;
-                        restoreCell(newValue, `<span class="badge bg-secondary bg-opacity-10 text-secondary">${deptName}</span>`);
+                        restoreCell(newValue, deptName);
                     } else {
                         restoreCell(newValue);
                     }
@@ -294,7 +321,11 @@
             });
         };
 
-        input.addEventListener('blur', save);
+        if (field === 'dept') {
+            input.addEventListener('change', save);
+        } else {
+            input.addEventListener('blur', save);
+        }
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') input.blur();
             if (e.key === 'Escape') {
@@ -304,19 +335,105 @@
         });
     }
 
+    // 테이블 정렬
+    let sortCol = 1;    // 기본: 입사일자 (col index 1)
+    let sortAsc = true; // 기본: 오름차순
+
+    function sortTable(colIndex, asc) {
+        const tbody = document.getElementById('employeeTableBody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((a, b) => {
+            const aCell = a.querySelectorAll('td')[colIndex];
+            const bCell = b.querySelectorAll('td')[colIndex];
+            if (!aCell || !bCell) return 0;
+
+            // select가 있는 셀은 선택값 사용
+            const aVal = (aCell.querySelector('select')?.value ?? aCell.textContent).trim();
+            const bVal = (bCell.querySelector('select')?.value ?? bCell.textContent).trim();
+
+            // 날짜/숫자 우선 비교, 아니면 문자열
+            const aNum = Date.parse(aVal) || Number(aVal);
+            const bNum = Date.parse(bVal) || Number(bVal);
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                return asc ? aNum - bNum : bNum - aNum;
+            }
+            return asc ? aVal.localeCompare(bVal, 'ko') : bVal.localeCompare(aVal, 'ko');
+        });
+
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = parseInt(th.dataset.col);
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+
+            // 아이콘 초기화
+            document.querySelectorAll('th.sortable .sort-icon').forEach(el => {
+                el.className = 'sort-icon fas fa-sort text-muted ms-1';
+            });
+            const icon = th.querySelector('.sort-icon');
+            icon.className = `sort-icon fas ${sortAsc ? 'fa-sort-up' : 'fa-sort-down'} ms-1`;
+
+            sortTable(sortCol, sortAsc);
+        });
+    });
+
+    // 페이지 로드 시 기본 정렬 적용 (입사일자 오름차순)
+    sortTable(sortCol, sortAsc);
+
     // 실시간 검색 필터링
     function filterRows() {
         const filter = document.getElementById('searchInput').value.toLowerCase();
+        const chkDst = document.getElementById('chkDst').checked;
+        const chkJsystem = document.getElementById('chkJsystem').checked;
+
         const rows = document.getElementById('employeeTableBody').getElementsByTagName('tr');
         for (let i = 0; i < rows.length; i++) {
-            const text = rows[i].textContent || rows[i].innerText;
-            rows[i].style.display = text.toLowerCase().includes(filter) ? '' : 'none';
+            const row = rows[i];
+            const comp = (row.dataset.deptComp || '').toLowerCase();
+
+            // select가 있는 셀은 선택된 값만 포함 (드롭다운 전체 옵션 제외)
+            let searchText = '';
+            row.querySelectorAll('td').forEach(td => {
+                const sel = td.querySelector('select');
+                searchText += ' ' + (sel ? sel.value : td.textContent);
+            });
+
+            const compMatch = (chkDst && comp.includes('dst'))
+                           || (chkJsystem && comp.includes('jsystem'));
+            const textMatch = searchText.toLowerCase().includes(filter);
+
+            row.style.display = compMatch && textMatch ? '' : 'none';
         }
+    }
+
+    // 소속회사 선택 시 부서 드롭다운 필터링
+    function filterDeptByComp() {
+        const selectedComp = document.getElementById('empComp').value;
+        const deptSelect = document.getElementById('empDept');
+        const options = deptSelect.querySelectorAll('option');
+
+        deptSelect.value = '';
+        options.forEach(opt => {
+            if (!opt.value) return; // 기본 placeholder 옵션 유지
+            opt.style.display = opt.dataset.comp === selectedComp ? '' : 'none';
+        });
+        deptSelect.querySelector('option[value=""]').textContent = selectedComp ? '부서를 선택하세요' : '회사를 먼저 선택하세요';
     }
 
     // 신규 사원 등록 모달
     function openCreateModal() {
         document.getElementById('addEmployeeForm').reset();
+        // 부서 옵션 전체 표시 초기화
+        document.getElementById('empDept').querySelectorAll('option').forEach(opt => opt.style.display = '');
+        document.getElementById('empDept').querySelector('option[value=""]').textContent = '회사를 먼저 선택하세요';
         employeeModal.show();
     }
 

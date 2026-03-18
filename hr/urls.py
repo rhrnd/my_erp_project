@@ -30,6 +30,9 @@ urlpatterns = [
     path('attendance/cancel/<int:emp_id>/<int:year>/<int:month>/<int:day>/<str:work_type>/',
          views.cancel_attendance_cell, name='cancel_attendance_cell'),
 
+    # 급여명세서 인쇄
+    path('payslip/print/', views.print_payslip, name='print_payslip'),
+
     # 연차 관리
     path('pto/', views.pto_list, name='pto'),
     path('api/pto/update/', views.pto_update, name='pto_update'),

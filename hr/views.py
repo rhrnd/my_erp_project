@@ -2,24 +2,22 @@ import calendar
 import html
 import json
 from functools import lru_cache
+from itertools import zip_longest
 
 import holidays as holidays_lib
 from decimal import Decimal, InvalidOperation
-from datetime import datetime
+from datetime import datetime, date
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 
 from audit.models import AuditLog
 from .forms import SalarySearchForm, PtoSearchForm
 from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave
 from . import services
-
-# 급여/사원 수정 시 감사 로그에서 제외할 민감 필드
-_SENSITIVE_KEYS = frozenset({'emp_rn', 'resident_number'})
 
 
 @lru_cache(maxsize=5)
@@ -36,10 +34,11 @@ def _null(val):
 @login_required
 def hr_list(request):
     # 실시간 검색(JS)을 사용하므로 서버에서는 전체 목록을 반환합니다.
-    employees = Employee.objects.select_related('dept').order_by('-emp_id')
-    # 부서 선택을 위해 부서 목록 조회
+    employees = Employee.objects.select_related('dept').order_by('emp_hire', 'emp_no')
     departments = Department.objects.filter(in_use=True).order_by('dept_nm')
-    return render(request, 'hr/hr_list.html', {'employees': employees, 'departments': departments})
+    companies = Department.objects.filter(in_use=True).values_list(
+        'dept_comp', flat=True).distinct().order_by('dept_comp')
+    return render(request, 'hr/hr_list.html', {'employees': employees, 'departments': departments, 'companies': companies})
 
 
 @login_required
@@ -66,14 +65,19 @@ def employee_create(request):
             emp_stat='재직'
         )
 
-        # [AuditLog] 사원 생성 로그 기록 (주민등록번호 등 민감정보 제외)
-        audit_data = {k: v for k, v in data.items() if k not in _SENSITIVE_KEYS}
+        # [AuditLog] 사원 생성 로그 기록
         AuditLog.objects.create(
             user=request.user,
             action='CREATE',
-            category='인사관리',
+            category='인사관리/사원리스트',
             target_name=data['name'],
-            changes=audit_data,
+            changes={
+                '사원번호': data['emp_id'],
+                '이름': data['name'],
+                '부서': dept_instance.dept_nm,
+                '직급': data.get('position') or '',
+                '입사일': data['join_date'],
+            },
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return JsonResponse({'status': 'success'})
@@ -98,9 +102,9 @@ def employee_update_status(request):
         AuditLog.objects.create(
             user=request.user,
             action='UPDATE',
-            category='인사관리',
-            target_name=f"{emp.emp_nm} (상태변경)",
-            changes={'status': data['status'], 'change_reason': change_reason},
+            category='인사관리/사원리스트',
+            target_name=emp.emp_nm,
+            changes={'재직상태': {'이전': emp.emp_stat, '이후': data['status']}, '변경사유': change_reason},
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return JsonResponse({'status': 'success'})
@@ -115,30 +119,50 @@ def employee_update_status(request):
 def employee_update(request):
     try:
         data = json.loads(request.body)
-        emp = Employee.objects.get(emp_no=data['emp_id'])
+        emp = Employee.objects.select_related('dept').get(emp_no=data['emp_id'])
 
-        # 프론트엔드에서 dept 값으로 ID(PK)를 전송하므로 pk로 조회해야 합니다.
+        # 변경 전 값 캡처
+        old = {
+            '이름': emp.emp_nm,
+            '부서': emp.dept.dept_nm if emp.dept else '',
+            '직급': emp.emp_pos or '',
+            '연락처': emp.emp_tel or '',
+            '입사일': str(emp.emp_hire) if emp.emp_hire else '',
+            '퇴사일': str(emp.emp_retire_dt) if emp.emp_retire_dt else '',
+            '주소': emp.emp_add or '',
+        }
+
+        # 값 업데이트
         if data.get('dept'):
             emp.dept = Department.objects.get(pk=data['dept'])
-
         emp.emp_nm = data['name']
         emp.emp_pos = _null(data.get('position'))
         emp.emp_tel = _null(data.get('phone'))
         emp.emp_hire = data['join_date']
         emp.emp_add = _null(data.get('address'))
-        # 주민등록번호 수정이 필요한 경우 (보안상 주의 필요)
+        emp.emp_retire_dt = _null(data.get('retire_date'))
         if 'resident_number' in data and data['resident_number']:
             emp.emp_rn = data['resident_number']
         emp.save()
 
-        # [AuditLog] 정보 수정 로그 기록 (주민등록번호 등 민감정보 제외)
-        audit_data = {k: v for k, v in data.items() if k not in _SENSITIVE_KEYS}
+        # 변경 후 값 — 변경된 필드만 before/after로 기록
+        new = {
+            '이름': emp.emp_nm,
+            '부서': emp.dept.dept_nm if emp.dept else '',
+            '직급': emp.emp_pos or '',
+            '연락처': emp.emp_tel or '',
+            '입사일': str(emp.emp_hire) if emp.emp_hire else '',
+            '퇴사일': str(emp.emp_retire_dt) if emp.emp_retire_dt else '',
+            '주소': emp.emp_add or '',
+        }
+        changes = {k: {'이전': old[k], '이후': new[k]} for k in old if old[k] != new[k]}
+
         AuditLog.objects.create(
             user=request.user,
             action='UPDATE',
-            category='인사관리',
+            category='인사관리/사원리스트',
             target_name=emp.emp_nm,
-            changes=audit_data,
+            changes=changes if changes else {'메시지': '변경 내용 없음'},
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return JsonResponse({'status': 'success'})
@@ -151,7 +175,7 @@ def employee_update(request):
 @login_required
 def department_list(request):
     """부서 관리 페이지"""
-    departments = Department.objects.all().order_by('dept_id')
+    departments = Department.objects.all().order_by('dept_comp', 'dept_nm')
     return render(request, 'hr/department_list.html', {'departments': departments})
 
 
@@ -161,14 +185,17 @@ def department_create(request):
     """부서 등록 API"""
     try:
         data = json.loads(request.body)
+        dept_comp = data.get('comp')
         dept_nm = data.get('name')
 
+        if not dept_comp:
+            return JsonResponse({'status': 'error', 'message': '소속회사명을 입력해주세요.'}, status=400)
         if not dept_nm:
             return JsonResponse({'status': 'error', 'message': '부서명을 입력해주세요.'}, status=400)
 
         dept = Department.objects.create(
+            dept_comp=dept_comp,
             dept_nm=dept_nm,
-            dept_comp=request.user.get_company_display(),  # 로그인한 유저의 소속 회사명으로 설정
             in_use=True
         )
 
@@ -176,9 +203,9 @@ def department_create(request):
         AuditLog.objects.create(
             user=request.user,
             action='CREATE',
-            category='인사관리',
+            category='인사관리/부서관리',
             target_name=dept.dept_nm,
-            changes=data,
+            changes={'소속회사명': dept_comp, '부서명': dept_nm},
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return JsonResponse({'status': 'success'})
@@ -193,25 +220,30 @@ def department_update(request):
     try:
         data = json.loads(request.body)
         dept_id = data.get('id')
+        dept_comp = data.get('comp')
         dept_nm = data.get('name')
         in_use = data.get('in_use')
 
         dept = Department.objects.get(pk=dept_id)
 
-        # 변경 전 데이터 저장 (로그용)
-        old_data = {'name': dept.dept_nm, 'in_use': dept.in_use}
+        # 변경 전 값 캡처
+        old = {'소속회사명': dept.dept_comp, '부서명': dept.dept_nm, '사용여부': dept.in_use}
 
+        dept.dept_comp = dept_comp
         dept.dept_nm = dept_nm
         dept.in_use = in_use
         dept.save()
+
+        new = {'소속회사명': dept_comp, '부서명': dept_nm, '사용여부': in_use}
+        changes = {k: {'이전': old[k], '이후': new[k]} for k in old if str(old[k]) != str(new[k])}
 
         # [AuditLog] 부서 수정 로그
         AuditLog.objects.create(
             user=request.user,
             action='UPDATE',
-            category='인사관리',
+            category='인사관리/부서관리',
             target_name=dept.dept_nm,
-            changes={'before': old_data, 'after': data},
+            changes=changes if changes else {'메시지': '변경 내용 없음'},
             ip_address=request.META.get('REMOTE_ADDR')
         )
         return JsonResponse({'status': 'success'})
@@ -247,19 +279,25 @@ def salary_list(request):
     # 근태 O/T 합계를 급여 잔업시간에 자동 반영
     services.sync_ot_from_attendance(target_month, selected_year, selected_month)
 
-    salaries = Salary.objects.filter(salary_month=target_month).select_related('emp').order_by('emp__emp_no')
+    selected_company = request.GET.get('company', '')
+
+    salaries = Salary.objects.filter(salary_month=target_month).select_related('emp__dept').order_by('emp__emp_no')
+    if selected_company:
+        salaries = salaries.filter(emp__dept__dept_comp=selected_company)
 
     # 4. 합계 계산 (Footer 표시용)
-    totals = services.get_salary_totals(target_month)
+    totals = services.get_salary_totals(target_month, company=selected_company or None)
 
     # 5. 권한 체크 (템플릿에서 버튼 노출 제어용)
-    # 유저의 역할에 '엑셀 다운로드' 권한이 포함되어 있는지 확인합니다.
     can_export = False
     if request.user.role:
         can_export = request.user.role.permissions.filter(
-            menu__code='hr_salary',  # 메뉴 카테고리에 등록한 코드와 일치해야 합니다.
+            menu__code='hr_salary',
             can_export=True
         ).exists()
+
+    companies = Department.objects.filter(in_use=True).values_list(
+        'dept_comp', flat=True).distinct().order_by('dept_comp')
 
     context = {
         'form': form,
@@ -267,7 +305,9 @@ def salary_list(request):
         'selected_month': selected_month,
         'salaries': salaries,
         'totals': totals,
-        'can_export': can_export,  # 템플릿에서 {% if can_export %} 로 사용
+        'can_export': can_export,
+        'companies': companies,
+        'selected_company': selected_company,
     }
 
     return render(request, 'hr/salary.html', context)
@@ -304,7 +344,7 @@ def salary_update(request):
         AuditLog.objects.create(
             user=request.user,
             action='UPDATE',
-            category='인사관리',
+            category='인사관리/급여관리',
             target_name=f"{salary.emp.emp_nm} ({salary.salary_month} 급여)",
             changes={field: float(value)},
             ip_address=request.META.get('REMOTE_ADDR')
@@ -366,11 +406,20 @@ def attendance_list(request):
 
     # 5. [중요] 사원별 근태 데이터 가공 (DB 쿼리)
     attendance_data = []
-    # 재직 중인 사원 조회 (부서 정보 포함)
-    employees = Employee.objects.filter(emp_stat='재직').select_related('dept').order_by('dept__dept_id', 'emp_no')
+    selected_company = request.GET.get('company', '')
+    companies = Department.objects.filter(in_use=True).values_list(
+        'dept_comp', flat=True).distinct().order_by('dept_comp')
 
-    # 해당 월의 전체 근태 기록 조회 (쿼리 최적화)
+    # 재직 중인 사원 조회 — 한 번만 평가해서 재사용
+    emp_qs = Employee.objects.filter(emp_stat='재직').select_related('dept').order_by('dept__dept_id', 'emp_no')
+    if selected_company:
+        emp_qs = emp_qs.filter(dept__dept_comp=selected_company)
+    employees = list(emp_qs)
+    employee_ids = [e.emp_id for e in employees]
+
+    # 해당 월의 근태 기록 — 해당 사원만 로드
     logs = AttendanceLog.objects.filter(
+        emp_id__in=employee_ids,
         work_dt__year=selected_year,
         work_dt__month=selected_month
     )
@@ -379,7 +428,7 @@ def attendance_list(request):
 
     # 누계 데이터 계산 (해당 연도 1월 1일부터 선택된 월의 마지막 날까지)
     cumulative_logs = AttendanceLog.objects.filter(
-        emp__in=employees,
+        emp_id__in=employee_ids,
         work_dt__year=selected_year,
         work_dt__month__lte=selected_month
     ).values('emp_id').annotate(
@@ -463,6 +512,8 @@ def attendance_list(request):
         'weekend_days': weekend_days,    # 주말 배경색용
         'holiday_days': holiday_days,    # 공휴일 { 일: 이름 }
         'attendance_data': attendance_data,  # 본문 데이터
+        'companies': companies,
+        'selected_company': selected_company,
     }
 
     return render(request, 'hr/attendance.html', context)
@@ -499,7 +550,9 @@ def edit_attendance_cell(request, emp_id, year, month, day, work_type):
         '''
         return HttpResponse(response_html)
     except Exception as e:
-        bg_class = " bg-weekend" if calendar.weekday(year, month, day) >= 5 else ""
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
         return HttpResponse(
             f'<td class="editable-cell text-center{bg_class} text-danger" '
             f'title="{html.escape(str(e))}">오류</td>',
@@ -524,12 +577,16 @@ def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
             elif work_type == 'weekend':
                 hours = log.weekend_hours
 
-        bg_class = " bg-weekend" if calendar.weekday(year, month, day) >= 5 else ""
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
 
         display = html.escape(f"{status} {hours if float(hours) > 0 else ''}".strip())
         return HttpResponse(f'<td class="editable-cell text-center{bg_class}" hx-get="/hr/attendance/edit/{emp_id}/{year}/{month}/{day}/{work_type}/" hx-trigger="click" hx-target="this" hx-swap="outerHTML">{display}</td>')
     except Exception as e:
-        bg_class = " bg-weekend" if calendar.weekday(year, month, day) >= 5 else ""
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
         return HttpResponse(
             f'<td class="editable-cell text-center{bg_class} text-danger" '
             f'title="{html.escape(str(e))}">오류</td>',
@@ -602,7 +659,9 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             work_dt__month__lte=month
         ).aggregate(res=Sum(cum_field_map[work_type]))['res'] or 0
 
-        bg_class = " bg-weekend" if calendar.weekday(year, month, day) >= 5 else ""
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
 
         response_html = f'''
         <td class="editable-cell text-center{bg_class}"
@@ -619,7 +678,9 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
         '''
         return HttpResponse(response_html)
     except Exception as e:
-        bg_class = " bg-weekend" if calendar.weekday(year, month, day) >= 5 else ""
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
         return HttpResponse(
             f'<td class="editable-cell text-center{bg_class} text-danger" '
             f'title="{html.escape(str(e))}">오류</td>',
@@ -688,6 +749,28 @@ def pto_list(request):
         'selected_year': selected_year,
         'form': form,
     })
+
+
+@login_required
+def print_payslip(request):
+    if not request.user.is_staff:
+        return redirect('/')
+
+    ids = [i.strip() for i in request.GET.get('salary_ids', '').split(',') if i.strip()]
+    salaries = Salary.objects.select_related('emp__dept').filter(salary_rec_id__in=ids)
+
+    salary_map = {str(s.salary_rec_id): s for s in salaries}
+    ordered = [salary_map[i] for i in ids if i in salary_map]
+
+    for s in ordered:
+        s.company_title = s.emp.dept.dept_comp.upper()  # 띄어쓰기 없이 대문자
+        year = int(s.salary_month[:4])
+        leave = AnnualLeave.objects.filter(emp=s.emp, year=year).first()
+        s.leave_used = '-'
+        s.leave_remaining = leave.total_days if leave else '-'
+
+    pairs = list(zip_longest(ordered[::2], ordered[1::2], fillvalue=None))
+    return render(request, 'hr/print_payslip.html', {'pairs': pairs})
 
 
 @login_required

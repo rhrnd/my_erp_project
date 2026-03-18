@@ -18,3 +18,39 @@ def blank(value):
     if value is None or str(value).strip() in ('None', ''):
         return ''
     return value
+
+
+@register.filter
+def is_dict(value):
+    """값이 딕셔너리인지 확인"""
+    return isinstance(value, dict)
+
+
+@register.filter
+def split(value, arg):
+    """문자열을 구분자로 분리해 리스트 반환"""
+    return str(value).split(arg)
+
+
+_FIELD_LABEL_MAP = {
+    'name': '이름',
+    'phone': '연락처',
+    'address': '주소',
+    'position': '직급',
+    'join_date': '입사일',
+    'retire_date': '퇴사일',
+    'dept': '부서',
+    'emp_id': '사원번호',
+    'status': '재직상태',
+    'change_reason': '변경사유',
+    'in_use': '사용여부',
+    'comp': '소속회사명',
+    'id': '부서코드',
+    'resident_number': '주민등록번호',
+}
+
+
+@register.filter
+def field_label(value):
+    """영문 필드명을 한글 레이블로 변환"""
+    return _FIELD_LABEL_MAP.get(str(value), value)

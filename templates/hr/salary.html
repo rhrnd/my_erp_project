@@ -59,19 +59,24 @@
         box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6 !important;
         min-width: 70px;
     }
+    /* 0열: 체크박스 */
+    .sticky-col-0 {
+        left: 0;
+        width: 35px; min-width: 35px; max-width: 35px;
+    }
     /* 1열: 사원번호 */
     .sticky-col-1 {
-        left: 0;
+        left: 35px;
         width: 80px; min-width: 80px; max-width: 80px;
     }
     /* 2열: 사원명*/
     .sticky-col-2 {
-        left: 80px;
+        left: 115px;
         width: 70px; min-width: 70px; max-width: 70px;
     }
     /* 3열: 직급 — 고정/스크롤 경계 구분선을 약간 강조 */
     .sticky-col-3 {
-        left: 150px;
+        left: 185px;
         width: 60px; min-width: 60px; max-width: 60px;
         box-shadow: inset -2px 0 0 #adb5bd, inset 0 -1px 0 #dee2e6 !important;
     }
@@ -81,9 +86,9 @@
         left: 0;
         z-index: 15;
         background-color: #f8f9fa !important;
-        width: 210px;
-        min-width: 210px;
-        max-width: 210px;
+        width: 245px;
+        min-width: 245px;
+        max-width: 245px;
         box-shadow: inset -2px 0 0 #adb5bd, inset 0 -1px 0 #dee2e6 !important;
         text-align: center;
     }
@@ -102,6 +107,7 @@
     <form method="get" class="d-flex align-items-center gap-2">
         {{ form.year }}
         {{ form.month }}
+        {% if selected_company %}<input type="hidden" name="company" value="{{ selected_company }}">{% endif %}
         <button type="submit" class="btn btn-dark shadow-sm">조회</button>
         {% if can_export %}
         <button type="button" class="btn btn-outline-success shadow-sm"><i class="fas fa-file-excel me-1"></i> 엑셀</button>
@@ -109,12 +115,22 @@
     </form>
 </div>
 
+<div class="d-flex justify-content-end mb-2">
+    <select id="companyFilter" class="form-select form-select-sm" style="width: auto;">
+        <option value="" {% if not selected_company %}selected{% endif %}>전체</option>
+        {% for comp in companies %}
+        <option value="{{ comp }}" {% if selected_company == comp %}selected{% endif %}>{{ comp }}</option>
+        {% endfor %}
+    </select>
+</div>
+
 <div class="card shadow border-0">
     <div class="card-body p-0">
         <div class="table-responsive w-100">
             <table class="table table-hover mb-0 text-center salary-table" id="salaryTable" style="font-size: 0.8rem; white-space: nowrap; min-width: 1800px;">
                 <colgroup>
-                    <!-- 고정열: 사원번호(80), 성명(70), 직급(60) -->
+                    <!-- 고정열: 체크박스(35), 사원번호(80), 성명(70), 직급(60) -->
+                    <col style="width: 35px;">
                     <col style="width: 80px;">
                     <col style="width: 70px;">
                     <col style="width: 60px;">
@@ -135,6 +151,7 @@
                 </colgroup>
                 <thead class="sticky-top">
                     <tr>
+                        <th rowspan="2" class="sticky-col sticky-col-0" style="min-width:35px;"></th>
                         <th rowspan="2" class="sticky-col sticky-col-1">사원번호</th>
                         <th rowspan="2" class="sticky-col sticky-col-2">성명</th>
                         <th rowspan="2" class="sticky-col sticky-col-3">직급</th>
@@ -177,6 +194,9 @@
                 <tbody>
                     {% for salary in salaries %}
                     <tr>
+                        <td class="sticky-col sticky-col-0 text-center">
+                            <input type="checkbox" name="salary_id" value="{{ salary.salary_rec_id }}">
+                        </td>
                         <td class="sticky-col sticky-col-1">{{ salary.emp.emp_no }}</td>
                         <td class="fw-bold sticky-col sticky-col-2">{{ salary.emp.emp_nm }}</td>
                         <td class="sticky-col sticky-col-3">{{ salary.emp.emp_pos|default:"" }}</td>
@@ -219,14 +239,14 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="27" class="py-5 text-muted">조회된 급여 데이터가 없습니다.</td>
+                        <td colspan="28" class="py-5 text-muted">조회된 급여 데이터가 없습니다.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 {% if salaries %}
                 <tfoot class="fw-bold bg-light">
                     <tr>
-                        <td colspan="3" class="sticky-col sticky-sum">합계</td>
+                        <td colspan="4" class="sticky-col sticky-sum">합계</td>
                         <!-- 통상임금 합계 -->
                         <td class="text-end" data-total-field="base_amt">{{ totals.base_amt|intcomma }}</td>
                         <td class="text-end" data-total-field="pos_allowance">{{ totals.pos_allowance|intcomma }}</td>
@@ -270,7 +290,31 @@
     </div>
 </div>
 
+{% if salaries %}
+<div class="d-flex justify-content-end gap-2 mt-2">
+    <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="printSelected()">
+        <i class="fas fa-print me-1"></i> 선택 인쇄
+    </button>
+    <button class="btn btn-outline-dark btn-sm shadow-sm" onclick="printAll()">
+        <i class="fas fa-print me-1"></i> 전체 인쇄
+    </button>
+</div>
+{% endif %}
+
 <script>
+function printSelected() {
+    const checked = document.querySelectorAll('input[name="salary_id"]:checked');
+    const ids = [...checked].map(el => el.value).join(',');
+    if (!ids) { alert('직원을 선택해주세요.'); return; }
+    window.open(`/hr/payslip/print/?salary_ids=${ids}`, '_blank');
+}
+function printAll() {
+    const all = document.querySelectorAll('input[name="salary_id"]');
+    const ids = [...all].map(el => el.value).join(',');
+    if (!ids) { alert('조회된 직원이 없습니다.'); return; }
+    window.open(`/hr/payslip/print/?salary_ids=${ids}`, '_blank');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const table = document.getElementById('salaryTable');
     if (!table) return;
@@ -371,5 +415,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+    // 소속회사 드롭다운 변경 시 즉시 조회
+    document.getElementById('companyFilter').addEventListener('change', function () {
+        const url = new URL(window.location.href);
+        if (this.value) {
+            url.searchParams.set('company', this.value);
+        } else {
+            url.searchParams.delete('company');
+        }
+        window.location.href = url.toString();
+    });
 </script>
 {% endblock %}
