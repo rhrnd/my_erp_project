@@ -275,6 +275,31 @@ class AttendanceLog(models.Model):
         return f"{self.work_dt} {self.emp.emp_nm} (정상:{self.normal_hours}/OT:{self.ot_hours})"
 
 
+class LateRecord(models.Model):
+    """지각 기록 — 사원별 연월별 지각 횟수 저장 (누적은 전체 합산으로 계산)"""
+    emp = models.ForeignKey(
+        'Employee',
+        on_delete=models.CASCADE,
+        db_column='emp_id',
+        related_name='late_records',
+        verbose_name="사원코드"
+    )
+    year = models.IntegerField(verbose_name="연도")
+    month = models.IntegerField(verbose_name="월")
+    count = models.PositiveIntegerField(default=0, verbose_name="지각 횟수")
+
+    history = HistoricalRecords()
+
+    class Meta:
+        db_table = 'late_record'
+        unique_together = ('emp', 'year', 'month')
+        verbose_name = '지각 기록'
+        verbose_name_plural = '지각 기록'
+
+    def __str__(self):
+        return f"{self.year}년 {self.month}월 {self.emp.emp_nm} 지각 {self.count}회"
+
+
 class AnnualLeave(models.Model):
     """연차 관리 — 사원별 연도별 연차 부여/사용 현황"""
     emp = models.ForeignKey(

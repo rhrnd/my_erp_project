@@ -105,6 +105,7 @@
                         {% endfor %}
                         <th style="width: 70px;">합 계</th>
                         <th style="width: 70px;">누 계</th>
+                        <th style="width: 55px;">지 각</th>
                         <th style="width: 100px;">비 고</th>
                     </tr>
                 </thead>
@@ -127,7 +128,19 @@
                         {% endfor %}
                         <td id="total-normal-{{ employee.id }}" class="fw-bold">{{ employee.total_normal|floatformat:1 }}</td>
                         <td id="cum-normal-{{ employee.id }}" class="fw-bold">{{ employee.cum_normal|floatformat:1 }}</td>
-                        <td rowspan="3"></td> 
+                        <td rowspan="3" class="text-center" style="background:rgba(254,249,195,0.4); vertical-align:middle;">
+                            {% if employee.late_cycle == 3 %}
+                                <span class="badge bg-danger">3</span>
+                            {% elif employee.late_cycle > 0 %}
+                                <span class="fw-bold text-warning">{{ employee.late_cycle }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                            {% if employee.late_deductions > 0 %}
+                                <div class="text-danger" style="font-size:10px; line-height:1.2;">-{{ employee.late_deductions }}회</div>
+                            {% endif %}
+                        </td>
+                        <td rowspan="3"></td>
                     </tr>
 
                     <tr>

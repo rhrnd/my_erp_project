@@ -37,6 +37,8 @@
                     <th style="width: 160px;">사용가능한연차 (A)</th>
                     <th style="width: 160px;">사용한연차 (B)</th>
                     <th style="width: 160px;">남은연차 (A-B)</th>
+                    <th style="width: 120px;">올해 지각</th>
+                    <th style="width: 120px;">누적 지각</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,10 +55,12 @@
                     <td class="fw-bold {% if row.remaining_days < 0 %}text-danger-soft{% endif %}">
                         {{ row.remaining_days|floatformat:1 }}
                     </td>
+                    <td class="text-center">{{ row.late_year }}</td>
+                    <td class="text-center fw-bold">{{ row.late_total }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="py-4 text-muted">재직 중인 사원이 없습니다.</td>
+                    <td colspan="7" class="py-4 text-muted">재직 중인 사원이 없습니다.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -137,5 +141,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
 </script>
 {% endblock %}

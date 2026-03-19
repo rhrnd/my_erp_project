@@ -16,7 +16,8 @@ from django.views.decorators.http import require_POST
 
 from audit.models import AuditLog
 from .forms import SalarySearchForm, PtoSearchForm
-from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave
+from django.db.models import F
+from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave, LateRecord
 from . import services
 
 
@@ -281,9 +282,42 @@ def salary_list(request):
 
     selected_company = request.GET.get('company', '')
 
-    salaries = Salary.objects.filter(salary_month=target_month).select_related('emp__dept').order_by('emp__emp_no')
+    salaries = list(
+        Salary.objects.filter(salary_month=target_month)
+        .select_related('emp__dept')
+        .order_by('emp__emp_no')
+    )
     if selected_company:
-        salaries = salaries.filter(emp__dept__dept_comp=selected_company)
+        salaries = [s for s in salaries if s.emp.dept.dept_comp == selected_company]
+
+    # 지각 사이클 계산 (LateRecord 기반)
+    emp_ids = [s.emp_id for s in salaries]
+    # 해당 월까지의 누적 지각 (이전 달 포함)
+    from django.db.models import Q
+    cum_map = dict(
+        LateRecord.objects.filter(emp_id__in=emp_ids)
+        .filter(Q(year__lt=selected_year) | Q(year=selected_year, month__lte=selected_month))
+        .values('emp_id').annotate(total=Sum('count'))
+        .values_list('emp_id', 'total')
+    )
+    # 전달까지의 누적 (사이클 리셋 판단용)
+    prev_year, prev_month = (selected_year, selected_month - 1) if selected_month > 1 else (selected_year - 1, 12)
+    prev_map = dict(
+        LateRecord.objects.filter(emp_id__in=emp_ids)
+        .filter(Q(year__lt=prev_year) | Q(year=prev_year, month__lte=prev_month))
+        .values('emp_id').annotate(total=Sum('count'))
+        .values_list('emp_id', 'total')
+    )
+    for s in salaries:
+        cumulative = cum_map.get(s.emp_id, 0)
+        prev_cumulative = prev_map.get(s.emp_id, 0)
+        # 이번 달에 새로운 3의 배수에 도달했으면 3 표시, 아니면 cumulative % 3
+        if cumulative % 3 == 0 and cumulative > 0 and cumulative > prev_cumulative:
+            s.late_cycle = 3
+        else:
+            s.late_cycle = cumulative % 3
+        s.late_cumulative = cumulative
+        s.late_deductions = cumulative // 3
 
     # 4. 합계 계산 (Footer 표시용)
     totals = services.get_salary_totals(target_month, company=selected_company or None)
@@ -426,6 +460,22 @@ def attendance_list(request):
     # (사원ID, 일) -> 로그 객체 매핑
     logs_map = {(log.emp_id, log.work_dt.day): log for log in logs}
 
+    # 지각 사이클 계산 (LateRecord 기반 배치 조회)
+    from django.db.models import Q
+    late_cum_map = dict(
+        LateRecord.objects.filter(emp_id__in=employee_ids)
+        .filter(Q(year__lt=selected_year) | Q(year=selected_year, month__lte=selected_month))
+        .values('emp_id').annotate(total=Sum('count'))
+        .values_list('emp_id', 'total')
+    )
+    prev_year, prev_month = (selected_year, selected_month - 1) if selected_month > 1 else (selected_year - 1, 12)
+    late_prev_map = dict(
+        LateRecord.objects.filter(emp_id__in=employee_ids)
+        .filter(Q(year__lt=prev_year) | Q(year=prev_year, month__lte=prev_month))
+        .values('emp_id').annotate(total=Sum('count'))
+        .values_list('emp_id', 'total')
+    )
+
     # 누계 데이터 계산 (해당 연도 1월 1일부터 선택된 월의 마지막 날까지)
     cumulative_logs = AttendanceLog.objects.filter(
         emp_id__in=employee_ids,
@@ -464,6 +514,16 @@ def attendance_list(request):
         emp_dict['cum_normal'] = emp_cum_data.get('cum_normal', 0.0)
         emp_dict['cum_ot'] = emp_cum_data.get('cum_ot', 0.0)
         emp_dict['cum_holiday'] = emp_cum_data.get('cum_holiday', 0.0)
+
+        # 지각 사이클 계산
+        cumulative = late_cum_map.get(emp.emp_id, 0)
+        prev_cumulative = late_prev_map.get(emp.emp_id, 0)
+        if cumulative % 3 == 0 and cumulative > 0 and cumulative > prev_cumulative:
+            emp_dict['late_cycle'] = 3
+        else:
+            emp_dict['late_cycle'] = cumulative % 3
+        emp_dict['late_cumulative'] = cumulative
+        emp_dict['late_deductions'] = cumulative // 3
 
         for d in days_range:
             log = logs_map.get((emp.emp_id, d))
@@ -603,7 +663,8 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
 
         date_str = f"{year}-{int(month):02d}-{int(day):02d}"
 
-        log, _ = AttendanceLog.objects.get_or_create(emp_id=emp_id, work_dt=date_str)
+        log, created = AttendanceLog.objects.get_or_create(emp_id=emp_id, work_dt=date_str)
+        old_status = '' if created else (log.status_text or '')
 
         # 숫자/문자 판별
         is_num = False
@@ -622,6 +683,19 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             else:
                 log.status_text = user_input
                 log.ot_hours = 0
+
+            # 지각 횟수 자동 증감 (연월 단위 저장)
+            new_status = '' if is_num else user_input
+            was_late = (old_status == '지각')
+            is_late  = (new_status == '지각')
+            if was_late != is_late:
+                lr, _ = LateRecord.objects.get_or_create(
+                    emp_id=emp_id, year=year, month=month, defaults={'count': 0}
+                )
+                if is_late:
+                    LateRecord.objects.filter(pk=lr.pk).update(count=F('count') + 1)
+                else:
+                    LateRecord.objects.filter(pk=lr.pk, count__gt=0).update(count=F('count') - 1)
         elif work_type == 'normal':
             log.normal_hours = num_val if is_num else 0
         elif work_type == 'weekend':
@@ -707,6 +781,20 @@ def pto_list(request):
     for al in AnnualLeave.objects.filter(year=selected_year, emp__in=employees):
         leave_map[al.emp_id] = al
 
+    # 올해 지각 합산 (월별 합산)
+    late_year_map = {
+        lr['emp_id']: lr
+        for lr in LateRecord.objects.filter(year=selected_year, emp__in=employees)
+        .values('emp_id').annotate(year_count=Sum('count'))
+    }
+    # 전체 누적 지각 (연도 무관 전체 합산)
+    late_total_map = dict(
+        LateRecord.objects.filter(emp__in=employees)
+        .values('emp_id')
+        .annotate(total=Sum('count'))
+        .values_list('emp_id', 'total')
+    )
+
     # 사용 연차: '연차'=1일, '반차'=0.5일로 집계
     from django.db.models import Case, When, Value, FloatField
     used_map = dict(
@@ -735,6 +823,7 @@ def pto_list(request):
         used_days = Decimal(str(used_map.get(emp.emp_id, 0)))
         remaining_days = total_days - used_days
 
+        lr = late_year_map.get(emp.emp_id)
         pto_data.append({
             'leave_id': leave.pk,
             'dept': emp.dept.dept_nm,
@@ -742,6 +831,9 @@ def pto_list(request):
             'total_days': total_days,
             'used_days': used_days,
             'remaining_days': remaining_days,
+            'late_year': lr['year_count'] if lr else 0,
+            'late_total': late_total_map.get(emp.emp_id, 0),
+            'emp_id': emp.emp_id,
         })
 
     return render(request, 'hr/pto.html', {
@@ -787,5 +879,28 @@ def pto_update(request):
         return JsonResponse({'status': 'success'})
     except AnnualLeave.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': '존재하지 않는 연차 레코드입니다.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def late_count_update(request):
+    try:
+        data = json.loads(request.body)
+        emp_id = data.get('emp_id')
+        year = data.get('year')
+        new_count = max(0, int(data.get('count', 0)))
+
+        lr, _ = LateRecord.objects.get_or_create(
+            emp_id=emp_id, year=year, defaults={'count': 0}
+        )
+        lr.count = new_count
+        lr.save()
+
+        total = LateRecord.objects.filter(emp_id=emp_id).aggregate(
+            t=Sum('count')
+        )['t'] or 0
+        return JsonResponse({'status': 'success', 'total': total})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

@@ -36,4 +36,5 @@ urlpatterns = [
     # 연차 관리
     path('pto/', views.pto_list, name='pto'),
     path('api/pto/update/', views.pto_update, name='pto_update'),
+    path('api/late/update/', views.late_count_update, name='late_count_update'),
 ]
