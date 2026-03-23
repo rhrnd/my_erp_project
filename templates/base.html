@@ -157,9 +157,15 @@
               </div>
             </li>
 
-            <!-- 세금 관리 -->
-            <li class="nav-item">
-              <a class="nav-link {% if '/tax/' in request.path %}active fw-bold{% endif %}" href="{% url 'tax:salary_rate' %}">세금 관리</a>
+            <!-- 회계 (드롭다운) -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle {% if '/tax/' in request.path %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                회계
+              </a>
+              <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-horizontal">
+                <li><a class="dropdown-item {% if 'tax/salary-rate' in request.path %}active{% endif %}" href="{% url 'tax:salary_rate' %}">급여 요율 관리</a></li>
+                <li><a class="dropdown-item {% if 'tax/salary-formula' in request.path %}active{% endif %}" href="{% url 'tax:salary_formula' %}">급여 계산식</a></li>
+              </ul>
             </li>
 
             <!-- 시스템 관리 (관리자 전용) -->

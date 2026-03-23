@@ -5,6 +5,7 @@ app_name = 'tax'
 
 urlpatterns = [
     path('salary-rate/', views.salary_rate_list, name='salary_rate'),
-    path('api/salary-rate/create/', views.salary_rate_create, name='salary_rate_create'),
+    path('salary-formula/', views.salary_formula, name='salary_formula'),
     path('api/salary-rate/update/', views.salary_rate_update, name='salary_rate_update'),
+    path('api/salary-rate/auto-calculate/', views.salary_auto_calculate, name='salary_auto_calculate'),
 ]
