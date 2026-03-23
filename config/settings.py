@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'permission',
     'tax',
     'simple_history',
+    'django_celery_beat',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -142,6 +144,12 @@ SESSION_SAVE_EVERY_REQUEST = True
 LOGIN_REDIRECT_URL = 'home'  # 로그인 성공 시 'home' URL로 이동
 LOGOUT_REDIRECT_URL = 'login'  # 로그아웃 시 'login' URL로 이동
 LOGIN_URL = 'login'  # @login_required가 적용된 페이지 접근 시 이동할 URL 이름
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # ── 리버스 프록시 설정 (Cloudflare → Nginx → Gunicorn) ───────────────────────
 USE_X_FORWARDED_HOST = True

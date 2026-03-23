@@ -4,6 +4,12 @@ from django.db.models import Sum
 
 from .models import AttendanceLog, Employee, Salary
 
+
+# ── 커스텀 예외 ────────────────────────────────────────────────────────────────
+
+class SalaryCalculationError(Exception):
+    """급여 계산 중 예기치 않은 오류 발생 시 사용한다."""
+
 # 급여 수정 허용 필드 화이트리스트 (views와 공유)
 ALLOWED_SALARY_FIELDS = {
     'base_amt', 'pos_allowance', 'exp_allowance', 'weekly_holiday_pay',
@@ -86,3 +92,76 @@ def get_salary_totals(target_month: str, company: str = None) -> dict:
         net_pay_amt=Sum('net_pay_amt'),
         tax_free_exclusion=Sum('tax_free_exclusion'),
     )
+
+
+# ── 급여 합계 계산 (순수 함수) ────────────────────────────────────────────────
+
+def calculate_salary_totals(salary: Salary) -> dict:
+    """
+    Salary 인스턴스의 각 항목을 합산하여 계산값을 반환한다.
+    DB 저장은 하지 않으며, Salary.save()의 계산 로직과 동일하다.
+
+    반환값 예시:
+        {
+            'total_gross_amt': Decimal('3000000'),
+            'total_deduction_amt': Decimal('300000'),
+            'net_pay_amt': Decimal('2700000'),
+            'total_labor_cost': Decimal('3150000'),
+        }
+    """
+    def _d(val) -> Decimal:
+        return Decimal(str(val)) if val else Decimal('0')
+
+    total_gross = (
+        _d(salary.base_amt) + _d(salary.pos_allowance) + _d(salary.exp_allowance) +
+        _d(salary.weekly_holiday_pay) + _d(salary.ot_pay) + _d(salary.non_smoke_allowance) +
+        _d(salary.func_allowance) + _d(salary.comm_allowance) + _d(salary.special_allowance) +
+        _d(salary.hourly_adj_amt) + _d(salary.meal_pay) + _d(salary.car_allowance)
+    )
+    total_deduction = (
+        _d(salary.income_tax) + _d(salary.local_income_tax) + _d(salary.health_ins) +
+        _d(salary.national_pension) + _d(salary.emp_ins) + _d(salary.longterm_care_ins) +
+        _d(salary.other_deduction)
+    )
+    net_pay = total_gross - total_deduction
+    total_labor_cost = total_gross + (
+        _d(salary.health_ins_comp) + _d(salary.pension_comp) +
+        _d(salary.emp_ins_comp) + _d(salary.ind_acc_comp)
+    )
+
+    return {
+        'total_gross_amt': total_gross,
+        'total_deduction_amt': total_deduction,
+        'net_pay_amt': net_pay,
+        'total_labor_cost': total_labor_cost,
+    }
+
+
+# ── 월별 근태 집계 ─────────────────────────────────────────────────────────────
+
+def get_monthly_attendance_summary(emp_id: int, year: int, month: int) -> dict:
+    """
+    특정 사원의 해당 월 AttendanceLog를 집계하여 반환한다.
+
+    반환값 예시:
+        {
+            'normal_hours': Decimal('160.0'),
+            'ot_hours': Decimal('12.5'),
+            'weekend_hours': Decimal('8.0'),
+        }
+    """
+    result = AttendanceLog.objects.filter(
+        emp_id=emp_id,
+        work_dt__year=year,
+        work_dt__month=month,
+    ).aggregate(
+        normal_hours=Sum('normal_hours'),
+        ot_hours=Sum('ot_hours'),
+        weekend_hours=Sum('weekend_hours'),
+    )
+
+    return {
+        'normal_hours': result['normal_hours'] or Decimal('0'),
+        'ot_hours': result['ot_hours'] or Decimal('0'),
+        'weekend_hours': result['weekend_hours'] or Decimal('0'),
+    }

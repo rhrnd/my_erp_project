@@ -1,13 +1,16 @@
-from audit.models import AuditLog
-from .models import Material, Inbound, Outbound, IncomingInspection, TAManagement
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
 import json
 from datetime import datetime
-from hr.models import Employee
-from django.shortcuts import render
+
+from django.contrib.auth.decorators import login_required
 from django.db.models import Prefetch
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.http import require_POST
+
+from audit.models import AuditLog
+from .models import Material, Inbound, Outbound, IncomingInspection, TAManagement
+from . import services
+from .services import InsufficientStockError
 
 
 @login_required
@@ -141,42 +144,39 @@ def scm_inout_create(request):
         data = json.loads(request.body)
         io_type = data.get('type')  # 'in' or 'out'
         mat_id = data.get('mat_id')
-        qty = float(data.get('qty', 0))
+        qty = data.get('qty', 0)
+        emp_id = getattr(getattr(request.user, 'employee', None), 'pk', None)
 
-        # 현재 로그인한 사용자의 사원 정보 가져오기
-        if not hasattr(request.user, 'employee') or not request.user.employee:
+        if not emp_id:
             return JsonResponse({'status': 'error', 'message': '로그인한 계정에 연결된 사원 정보가 없습니다.'}, status=400)
 
-        employee = request.user.employee
-        material = Material.objects.get(pk=mat_id)
-
-        if io_type == 'out' and qty > material.mat_current_stock:
-            return JsonResponse({'status': 'error', 'message': '제품 수량이 부족합니다.'}, status=400)
-
         if io_type == 'in':
-            # 입고 등록
-            Inbound.objects.create(
-                mat=material,
-                emp=employee,
-                in_qty=qty,
-                in_purchase_price=float(data.get('price', 0)),
-                in_purchase_dt=data.get('date')
+            services.process_inbound(
+                mat_id=mat_id,
+                qty=qty,
+                price=data.get('price', 0),
+                emp_id=emp_id,
+                purchase_dt=data.get('date'),
             )
-            material.mat_current_stock += qty
+        elif io_type == 'out':
+            services.process_outbound(
+                mat_id=mat_id,
+                qty=qty,
+                emp_id=emp_id,
+                out_date=data.get('date'),
+                remark=data.get('remark', ''),
+            )
         else:
-            # 출고 등록
-            Outbound.objects.create(
-                mat=material,
-                emp=employee,
-                out_qty=qty,
-                out_date=data.get('date')
-            )
-            material.mat_current_stock -= qty
+            return JsonResponse({'status': 'error', 'message': '잘못된 유형입니다.'}, status=400)
 
-        material.save()
         return JsonResponse({'status': 'success'})
+
+    except InsufficientStockError as e:
+        return JsonResponse({'status': 'error', 'message': f'재고 부족: 현재 {e.available}, 요청 {e.requested}'}, status=400)
+    except Material.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': '존재하지 않는 자재입니다.'}, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @login_required

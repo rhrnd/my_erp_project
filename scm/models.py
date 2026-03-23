@@ -48,8 +48,8 @@ class Inbound(models.Model):
         verbose_name="사원 코드 연결"
     )
     in_purchase_dt = models.DateField(verbose_name="영수증 상 실제 구매일")
-    in_purchase_price = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="구매 당시 개당 단가")
-    in_qty = models.DecimalField(max_digits=15, decimal_places=3, verbose_name="입고된 수량")
+    in_purchase_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="구매 당시 개당 단가")
+    in_qty = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="입고된 수량")
     in_dtm = models.DateTimeField(auto_now_add=True, verbose_name="시스템 등록 시각")
 
     class Meta:
@@ -79,7 +79,7 @@ class Outbound(models.Model):
         help_text="출고를 기록한 사원의 정보. 실사용자는 비고에 기록"
     )
     out_date = models.DateField(verbose_name="출고 일자")
-    out_qty = models.DecimalField(max_digits=15, decimal_places=3, verbose_name="사용/불출 수량")
+    out_qty = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="사용/불출 수량")
 
     out_dtm = models.DateTimeField(auto_now_add=True, verbose_name="시스템 등록 시각")
 
