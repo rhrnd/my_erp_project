@@ -14,7 +14,7 @@ class SalaryRate(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'salary_rate'
+        db_table = 'tax_salary_rate'
         ordering = ['-year']
         verbose_name = '연도별 급여 요율'
         verbose_name_plural = '연도별 급여 요율'

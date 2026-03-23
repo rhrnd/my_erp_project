@@ -23,7 +23,7 @@ class Department(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'department'
+        db_table = 'hr_department'
         verbose_name = '부서 마스터'
         verbose_name_plural = '부서 마스터'
 
@@ -69,7 +69,7 @@ class Employee(models.Model):
     history = HistoricalRecords(excluded_fields=['emp_rn'])
 
     class Meta:
-        db_table = 'employee'
+        db_table = 'hr_employee'
         verbose_name = '사원 마스터'
         verbose_name_plural = '사원 마스터'
 
@@ -98,7 +98,7 @@ class EmployeeFinance(models.Model):
     history = HistoricalRecords(excluded_fields=['bank_acc_no'])
 
     class Meta:
-        db_table = 'employee_finance'  # 실제 DB 테이블명
+        db_table = 'hr_employee_finance'
         verbose_name = '사원 금융 정보'
         verbose_name_plural = '사원 금융 정보'
 
@@ -186,7 +186,7 @@ class Salary(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'salary'
+        db_table = 'hr_salary'
         unique_together = ('emp', 'salary_month')  # 동일 사원이 같은 달에 급여가 중복되는것을 방지
         verbose_name = '급여 정보'
         verbose_name_plural = '급여 정보'
@@ -265,7 +265,7 @@ class AttendanceLog(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'attendance_log'
+        db_table = 'hr_attendance_log'
         verbose_name = '근태 기록'
         verbose_name_plural = '근태 기록'
         # 한 사원이 같은 날짜에 중복된 기록을 갖지 못하도록 제약
@@ -291,7 +291,7 @@ class LateRecord(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'late_record'
+        db_table = 'hr_late_record'
         unique_together = ('emp', 'year', 'month')
         verbose_name = '지각 기록'
         verbose_name_plural = '지각 기록'
@@ -317,7 +317,7 @@ class AnnualLeave(models.Model):
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'annual_leave'
+        db_table = 'hr_annual_leave'
         unique_together = ('emp', 'year')
         verbose_name = '연차 관리'
         verbose_name_plural = '연차 관리'
@@ -371,7 +371,7 @@ class User(AbstractUser):
     last_login_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name="최근 접속 IP")
 
     class Meta:
-        db_table = 'erp_user'
+        db_table = 'hr_user'
         verbose_name = '사용자 계정'
         verbose_name_plural = '사용자 계정'
 

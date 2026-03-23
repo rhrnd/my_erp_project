@@ -1,7 +1,7 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 from .models import Material, Inbound, Outbound
-from .models import IncomingInspection, TA_management
+from .models import IncomingInspection, TAManagement
 
 
 @admin.register(Material)
@@ -23,8 +23,8 @@ class OutboundAdmin(admin.ModelAdmin):
     list_filter = ('out_date',)
 
 
-class TA_managementInline(admin.TabularInline):
-    model = TA_management
+class TAManagementInline(admin.TabularInline):
+    model = TAManagement
     extra = 1
     fields = [
         "lot_number", "quantity",
@@ -36,15 +36,15 @@ class TA_managementInline(admin.TabularInline):
 @admin.register(IncomingInspection)
 class IncomingInspectionAdmin(admin.ModelAdmin):
     list_display = ["incoming_date", "total_quantity", "lot_count"]
-    inlines = [TA_managementInline]  # ← 변경
+    inlines = [TAManagementInline]
 
     def lot_count(self, obj):
         return obj.lots.count()
     lot_count.short_description = "LOT 수"
 
 
-@admin.register(TA_management)  # ← 변경
-class TA_managementAdmin(admin.ModelAdmin):
+@admin.register(TAManagement)
+class TAManagementAdmin(admin.ModelAdmin):
     list_display = ["lot_number", "inspection", "quantity", "defect", "rework"]
     search_fields = ["lot_number"]
     list_filter = ["inspection__incoming_date"]

@@ -15,13 +15,13 @@ class Material(models.Model):
         verbose_name="규격"
     )
     mat_unit = models.CharField(max_length=10, verbose_name="단위")
-    mat_current_stock = models.FloatField(default=0, verbose_name="현재재고")
+    mat_current_stock = models.DecimalField(max_digits=15, decimal_places=3, default=0, verbose_name="현재재고")
     in_use = models.BooleanField(default=True, verbose_name="사용여부", help_text="자재 단종 시 FALSE")
 
     history = HistoricalRecords()
 
     class Meta:
-        db_table = 'material'
+        db_table = 'scm_material'
         verbose_name = '자재 마스터'
         verbose_name_plural = '자재 마스터'
         # 제품명 + 제조사 + 규격 조합이 중복되지 않도록 설정 (UK 대응)
@@ -48,12 +48,12 @@ class Inbound(models.Model):
         verbose_name="사원 코드 연결"
     )
     in_purchase_dt = models.DateField(verbose_name="영수증 상 실제 구매일")
-    in_purchase_price = models.FloatField(verbose_name="구매 당시 개당 단가")
-    in_qty = models.FloatField(verbose_name="입고된 수량")
+    in_purchase_price = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="구매 당시 개당 단가")
+    in_qty = models.DecimalField(max_digits=15, decimal_places=3, verbose_name="입고된 수량")
     in_dtm = models.DateTimeField(auto_now_add=True, verbose_name="시스템 등록 시각")
 
     class Meta:
-        db_table = 'inbound'
+        db_table = 'scm_inbound'
         verbose_name = '입고 정보'
         verbose_name_plural = '입고 정보'
 
@@ -79,14 +79,14 @@ class Outbound(models.Model):
         help_text="출고를 기록한 사원의 정보. 실사용자는 비고에 기록"
     )
     out_date = models.DateField(verbose_name="출고 일자")
-    out_qty = models.FloatField(verbose_name="사용/불출 수량")
+    out_qty = models.DecimalField(max_digits=15, decimal_places=3, verbose_name="사용/불출 수량")
 
     out_dtm = models.DateTimeField(auto_now_add=True, verbose_name="시스템 등록 시각")
 
     out_remark = models.TextField(null=True, blank=True, verbose_name="비고")
 
     class Meta:
-        db_table = 'outbound'
+        db_table = 'scm_outbound'
         verbose_name = '출고 정보'
         verbose_name_plural = '출고 정보'
 
@@ -113,7 +113,7 @@ class IncomingInspection(models.Model):
         return result["total"] or 0
 
 
-class TA_management(models.Model):
+class TAManagement(models.Model):
     """LOT 단위 검사 기록"""
 
     inspection = models.ForeignKey(
@@ -136,6 +136,7 @@ class TA_management(models.Model):
     note = models.TextField(blank=True, default="", verbose_name="비고")
 
     class Meta:
+        db_table = 'scm_ta_management'
         verbose_name = "TA 관리"
         verbose_name_plural = "TA 관리 목록"
         ordering = ["lot_number"]

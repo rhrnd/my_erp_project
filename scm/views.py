@@ -1,5 +1,5 @@
 from audit.models import AuditLog
-from .models import Material, Inbound, Outbound, IncomingInspection, TA_management
+from .models import Material, Inbound, Outbound, IncomingInspection, TAManagement
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
@@ -182,7 +182,7 @@ def scm_inout_create(request):
 @login_required
 def inspection_table(request):
     inspections = IncomingInspection.objects.prefetch_related(
-        Prefetch("lots", queryset=TA_management.objects.order_by("lot_number"))  # ← 변경
+        Prefetch("lots", queryset=TAManagement.objects.order_by("lot_number"))  # ← 변경
     ).order_by("incoming_date")
 
     table_data = []
