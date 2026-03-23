@@ -291,13 +291,33 @@
 </div>
 
 {% if salaries %}
-<div class="d-flex justify-content-end gap-2 mt-2">
-    <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="printSelected()">
-        <i class="fas fa-print me-1"></i> 선택 인쇄
-    </button>
-    <button class="btn btn-outline-dark btn-sm shadow-sm" onclick="printAll()">
-        <i class="fas fa-print me-1"></i> 전체 인쇄
-    </button>
+<div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+    <!-- 자동 계산 영역 -->
+    <div class="d-flex align-items-center gap-2">
+        {% if salary_rate %}
+        <span class="text-muted" style="font-size:12px;">
+            <i class="fas fa-info-circle me-1"></i>{{ selected_year }}년 요율 적용 중
+            (건보 {{ salary_rate.health_ins_rate }}% / 연금 {{ salary_rate.pension_rate }}% / 고용 {{ salary_rate.emp_ins_rate }}%)
+        </span>
+        <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="autoCalculate()">
+            <i class="fas fa-calculator me-1"></i> 보험료 자동 계산
+        </button>
+        {% else %}
+        <span class="text-danger" style="font-size:12px;">
+            <i class="fas fa-exclamation-triangle me-1"></i>{{ selected_year }}년 요율 미등록
+            — <a href="{% url 'tax:salary_rate' %}" target="_blank">요율 관리 페이지</a>에서 먼저 등록하세요.
+        </span>
+        {% endif %}
+    </div>
+    <!-- 인쇄 버튼 -->
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="printSelected()">
+            <i class="fas fa-print me-1"></i> 선택 인쇄
+        </button>
+        <button class="btn btn-outline-dark btn-sm shadow-sm" onclick="printAll()">
+            <i class="fas fa-print me-1"></i> 전체 인쇄
+        </button>
+    </div>
 </div>
 {% endif %}
 
@@ -313,6 +333,27 @@ function printAll() {
     const ids = [...all].map(el => el.value).join(',');
     if (!ids) { alert('조회된 직원이 없습니다.'); return; }
     window.open(`/hr/payslip/print/?salary_ids=${ids}`, '_blank');
+}
+
+function autoCalculate() {
+    const salaryMonth = '{{ selected_year }}-{{ selected_month|stringformat:"02d" }}';
+    if (!confirm(`${salaryMonth} 급여 전체에 등록된 요율로 보험료를 자동 계산합니다.\n기존에 입력된 보험료 값은 덮어씁니다. 계속하시겠습니까?`)) return;
+
+    fetch("{% url 'tax:salary_auto_calculate' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ salary_month: salaryMonth })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.status === 'success') {
+            alert(`${res.updated}명의 보험료가 자동 계산되었습니다.`);
+            location.reload();
+        } else {
+            alert('오류: ' + res.message);
+        }
+    })
+    .catch(() => alert('서버 통신 오류'));
 }
 
 document.addEventListener('DOMContentLoaded', function() {

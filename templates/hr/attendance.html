@@ -112,11 +112,11 @@
                 <tbody>
                     {% for employee in attendance_data %}
                     <tr>
-                        <td rowspan="3" class="sticky-left text-center" style="width: 80px; white-space: normal; line-height: 1.4;">
+                        <td rowspan="4" class="sticky-left text-center" style="width: 80px; white-space: normal; line-height: 1.4;">
                             <div class="text-muted" style="font-size: 10px;">[{{ employee.dept.dept_comp }}]</div>
                             <div>{{ employee.dept.dept_nm }}</div>
                         </td>
-                        <td rowspan="3" class="fw-bold sticky-left">{{ employee.name }}</td>
+                        <td rowspan="4" class="fw-bold sticky-left">{{ employee.name }}</td>
                         <td class="bg-light-gray">정상</td>
                         {% for d in days_range %}
                         <td class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %} editable-cell"
@@ -128,7 +128,7 @@
                         {% endfor %}
                         <td id="total-normal-{{ employee.id }}" class="fw-bold">{{ employee.total_normal|floatformat:1 }}</td>
                         <td id="cum-normal-{{ employee.id }}" class="fw-bold">{{ employee.cum_normal|floatformat:1 }}</td>
-                        <td rowspan="3" class="text-center" style="background:rgba(254,249,195,0.4); vertical-align:middle;">
+                        <td rowspan="4" class="text-center" style="background:rgba(254,249,195,0.4); vertical-align:middle;">
                             {% if employee.late_cycle == 3 %}
                                 <span class="badge bg-danger">3</span>
                             {% elif employee.late_cycle > 0 %}
@@ -140,7 +140,29 @@
                                 <div class="text-danger" style="font-size:10px; line-height:1.2;">-{{ employee.late_deductions }}회</div>
                             {% endif %}
                         </td>
-                        <td rowspan="3"></td>
+                        <td rowspan="4" class="text-center align-middle" style="font-size:11px; padding:2px;">
+                            <div id="remark-{{ employee.id }}"
+                                 style="cursor:pointer; white-space:pre-wrap; height:90px; overflow-y:auto; padding:2px;"
+                                 hx-get="/hr/attendance/remark/edit/{{ employee.id }}/{{ selected_year }}/{{ selected_month }}/"
+                                 hx-trigger="click"
+                                 hx-target="#remark-{{ employee.id }}"
+                                 hx-swap="outerHTML">
+                                {{ employee.remark }}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="bg-light-gray">상태</td>
+                        {% for d in days_range %}
+                        <td class="{% if d in weekend_days %}bg-weekend{% elif d in holiday_days %}bg-holiday{% endif %} editable-cell"
+                            hx-get="/hr/attendance/edit/{{ employee.id }}/{{ selected_year }}/{{ selected_month }}/{{ d }}/status/"
+                            hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+                            {{ employee.daily|get_item:d|get_item:'status'|default:'' }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-status-{{ employee.id }}" class="fw-bold">{{ employee.total_leave|default:0|floatformat:1 }}</td>
+                        <td id="cum-status-{{ employee.id }}" class="fw-bold">{{ employee.cum_leave|default:0|floatformat:1 }}</td>
                     </tr>
 
                     <tr>

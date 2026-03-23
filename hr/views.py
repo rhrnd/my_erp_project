@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
+from django.db.models import Sum, Case, When, Value, FloatField
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
@@ -17,10 +17,11 @@ from django.views.decorators.http import require_POST
 from audit.models import AuditLog
 from .forms import SalarySearchForm, PtoSearchForm
 from django.db.models import F
-from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave, LateRecord
+from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave, LateRecord, AttendanceRemark
 from . import services
 
 
+@lru_cache(maxsize=5)
 @lru_cache(maxsize=5)
 def _get_kr_holidays(year: int) -> dict:
     """연도별 한국 공휴일을 캐싱하여 반환한다 (서버 재시작 전까지 유지)."""
@@ -322,6 +323,13 @@ def salary_list(request):
     # 4. 합계 계산 (Footer 표시용)
     totals = services.get_salary_totals(target_month, company=selected_company or None)
 
+    # 해당 연도 요율 (자동계산 안내용)
+    from tax.models import SalaryRate
+    try:
+        salary_rate = SalaryRate.objects.get(year=selected_year)
+    except SalaryRate.DoesNotExist:
+        salary_rate = None
+
     # 5. 권한 체크 (템플릿에서 버튼 노출 제어용)
     can_export = False
     if request.user.role:
@@ -342,6 +350,7 @@ def salary_list(request):
         'can_export': can_export,
         'companies': companies,
         'selected_company': selected_company,
+        'salary_rate': salary_rate,
     }
 
     return render(request, 'hr/salary.html', context)
@@ -357,24 +366,21 @@ def salary_update(request):
         field = data.get('field')
         value = data.get('value', 0)
 
-        # 수정 허용 필드 화이트리스트 (보안: 클라이언트가 임의 필드를 변조하지 못하도록 제한)
         if field not in services.ALLOWED_SALARY_FIELDS:
             return JsonResponse({'status': 'error', 'message': '수정 불가능한 필드입니다.'}, status=400)
 
-        # 문자열로 들어온 값을 Decimal로 변환 (모델의 save() 메서드 내 연산 오류 방지)
         try:
             value = Decimal(str(value))
         except (ValueError, TypeError, InvalidOperation):
             value = Decimal('0')
 
-        # 해당 급여 레코드 조회
         salary = Salary.objects.select_related('emp').get(pk=salary_id)
-
-        # 필드 값 업데이트 (문자열 필드명으로 동적 할당)
         setattr(salary, field, value)
-        salary.save()  # 모델의 save() 메서드에서 합계가 자동 계산됨
+        salary.save()
 
-        # [AuditLog] 급여 수정 로그 기록
+        # 합계를 서비스 레이어에서 계산
+        row_totals = services.calculate_salary_totals(salary)
+
         AuditLog.objects.create(
             user=request.user,
             action='UPDATE',
@@ -384,23 +390,20 @@ def salary_update(request):
             ip_address=request.META.get('REMOTE_ADDR')
         )
 
-        # 하단 합계 재계산 (페이지 새로고침 없이 실시간 반영을 위함)
         totals = services.get_salary_totals(salary.salary_month)
-
-        # Decimal 객체들을 JSON 직렬화 가능한 float으로 변환
         response_totals = {k: float(v or 0) for k, v in totals.items()}
 
         return JsonResponse({
             'status': 'success',
-            'row_total_gross': float(salary.total_gross_amt),
-            'row_total_deduction': float(salary.total_deduction_amt),
-            'row_net_pay': float(salary.net_pay_amt),
-            'totals': response_totals
+            'row_total_gross': float(row_totals['total_gross_amt']),
+            'row_total_deduction': float(row_totals['total_deduction_amt']),
+            'row_net_pay': float(row_totals['net_pay_amt']),
+            'totals': response_totals,
         })
     except Salary.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': '데이터를 찾을 수 없습니다.'}, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 @login_required
@@ -495,6 +498,39 @@ def attendance_list(request):
         } for item in cumulative_logs
     }
 
+    # 연차/반차 환산 합계 (연차=1, 반차=0.5)
+    _leave_expr = Sum(Case(
+        When(status_text='연차', then=Value(1.0)),
+        When(status_text='반차', then=Value(0.5)),
+        default=Value(0.0),
+        output_field=FloatField()
+    ))
+    leave_monthly_map = dict(
+        AttendanceLog.objects.filter(
+            emp_id__in=employee_ids,
+            work_dt__year=selected_year,
+            work_dt__month=selected_month,
+            status_text__in=['연차', '반차']
+        ).values('emp_id').annotate(total=_leave_expr).values_list('emp_id', 'total')
+    )
+    leave_cum_map = dict(
+        AttendanceLog.objects.filter(
+            emp_id__in=employee_ids,
+            work_dt__year=selected_year,
+            work_dt__month__lte=selected_month,
+            status_text__in=['연차', '반차']
+        ).values('emp_id').annotate(total=_leave_expr).values_list('emp_id', 'total')
+    )
+
+    # 비고 (월별) 배치 조회
+    remark_map = dict(
+        AttendanceRemark.objects.filter(
+            emp_id__in=employee_ids,
+            year=selected_year,
+            month=selected_month,
+        ).values_list('emp_id', 'remark')
+    )
+
     for emp in employees:
         emp_dict = {
             'id': emp.emp_id,
@@ -515,6 +551,13 @@ def attendance_list(request):
         emp_dict['cum_ot'] = emp_cum_data.get('cum_ot', 0.0)
         emp_dict['cum_holiday'] = emp_cum_data.get('cum_holiday', 0.0)
 
+        # 연차/반차 환산 합계 (연차=1, 반차=0.5)
+        emp_dict['total_leave'] = leave_monthly_map.get(emp.emp_id, 0.0)
+        emp_dict['cum_leave'] = leave_cum_map.get(emp.emp_id, 0.0)
+
+        # 월별 비고
+        emp_dict['remark'] = remark_map.get(emp.emp_id, '')
+
         # 지각 사이클 계산
         cumulative = late_cum_map.get(emp.emp_id, 0)
         prev_cumulative = late_prev_map.get(emp.emp_id, 0)
@@ -527,7 +570,7 @@ def attendance_list(request):
 
         for d in days_range:
             log = logs_map.get((emp.emp_id, d))
-            day_data = {'normal': '', 'ot': '', 'weekend': ''}
+            day_data = {'normal': '', 'status': '', 'ot': '', 'weekend': ''}
 
             if log:
                 # 1. 정상 근무
@@ -536,24 +579,16 @@ def attendance_list(request):
                     day_data['normal'] = str(int(val)) if val % 1 == 0 else str(val)
                     emp_dict['total_normal'] += val
 
-                # 2. OT (상태 텍스트와 시간을 조합하여 표시)
-                # DB에 저장된 상태 텍스트(예: 지각, 조퇴 등)가 있으면 가져옴
-                s_text = log.status_text.strip() if log.status_text else ""
+                # 2. 상태 텍스트 (연차/지각/조퇴/반차 등)
+                day_data['status'] = log.status_text.strip() if log.status_text else ""
 
-                # OT 시간 (Decimal -> float 변환)
+                # 3. OT (숫자만)
                 val = float(log.ot_hours or 0)
-
-                s_hours = ""
                 if val > 0:
-                    # 시간 합계 누적
                     emp_dict['total_ot'] += val
-                    # 정수/소수점 표현 처리 (예: 2.0 -> "2", 2.5 -> "2.5")
-                    s_hours = str(int(val)) if val % 1 == 0 else str(val)
+                    day_data['ot'] = str(int(val)) if val % 1 == 0 else str(val)
 
-                # 텍스트와 숫자를 공백으로 연결하여 표시 (예: "지각", "2", "지각 2")
-                day_data['ot'] = f"{s_text} {s_hours}".strip()
-
-                # 3. 주말/휴일 근무
+                # 4. 주말/휴일 근무
                 if log.weekend_hours > 0:
                     val = float(log.weekend_hours)
                     day_data['weekend'] = str(int(val)) if val % 1 == 0 else str(val)
@@ -586,11 +621,13 @@ def edit_attendance_cell(request, emp_id, year, month, day, work_type):
         date_str = f"{year}-{int(month):02d}-{int(day):02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
 
-        # 현재 칸에 들어갈 값 결정 (글자 우선, 없으면 숫자)
+        # 현재 칸에 들어갈 값 결정
         current_val = ""
         if log:
-            if work_type == 'ot':
-                current_val = log.status_text if log.status_text else (log.ot_hours if log.ot_hours > 0 else "")
+            if work_type == 'status':
+                current_val = log.status_text or ""
+            elif work_type == 'ot':
+                current_val = log.ot_hours if log.ot_hours > 0 else ""
             elif work_type == 'normal':
                 current_val = log.normal_hours if log.normal_hours > 0 else ""
             elif work_type == 'weekend':
@@ -626,23 +663,27 @@ def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
         date_str = f"{year}-{month:02d}-{day:02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
 
-        hours = 0
-        status = ""
+        display_val = ""
         if log:
-            if work_type == 'ot':
-                hours = log.ot_hours
-                status = log.status_text or ""
-            elif work_type == 'normal':
-                hours = log.normal_hours
-            elif work_type == 'weekend':
-                hours = log.weekend_hours
+            if work_type == 'status':
+                display_val = html.escape(log.status_text or "")
+            else:
+                hours = 0
+                if work_type == 'ot':
+                    hours = log.ot_hours
+                elif work_type == 'normal':
+                    hours = log.normal_hours
+                elif work_type == 'weekend':
+                    hours = log.weekend_hours
+                val = float(hours)
+                if val > 0:
+                    display_val = str(int(val)) if val % 1 == 0 else str(val)
 
         _is_weekend = calendar.weekday(year, month, day) >= 5
         _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
         bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
 
-        display = html.escape(f"{status} {hours if float(hours) > 0 else ''}".strip())
-        return HttpResponse(f'<td class="editable-cell text-center{bg_class}" hx-get="/hr/attendance/edit/{emp_id}/{year}/{month}/{day}/{work_type}/" hx-trigger="click" hx-target="this" hx-swap="outerHTML">{display}</td>')
+        return HttpResponse(f'<td class="editable-cell text-center{bg_class}" hx-get="/hr/attendance/edit/{emp_id}/{year}/{month}/{day}/{work_type}/" hx-trigger="click" hx-target="this" hx-swap="outerHTML">{display_val}</td>')
     except Exception as e:
         _is_weekend = calendar.weekday(year, month, day) >= 5
         _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
@@ -676,18 +717,11 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             is_num = False
 
         # 필드 매칭 로직
-        if work_type == 'ot':
-            if is_num:
-                log.ot_hours = num_val
-                log.status_text = ""
-            else:
-                log.status_text = user_input
-                log.ot_hours = 0
-
-            # 지각 횟수 자동 증감 (연월 단위 저장)
-            new_status = '' if is_num else user_input
+        if work_type == 'status':
+            log.status_text = user_input
+            # 지각 횟수 자동 증감
             was_late = (old_status == '지각')
-            is_late  = (new_status == '지각')
+            is_late  = (user_input == '지각')
             if was_late != is_late:
                 lr, _ = LateRecord.objects.get_or_create(
                     emp_id=emp_id, year=year, month=month, defaults={'count': 0}
@@ -696,6 +730,8 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
                     LateRecord.objects.filter(pk=lr.pk).update(count=F('count') + 1)
                 else:
                     LateRecord.objects.filter(pk=lr.pk, count__gt=0).update(count=F('count') - 1)
+        elif work_type == 'ot':
+            log.ot_hours = num_val if is_num else 0
         elif work_type == 'normal':
             log.normal_hours = num_val if is_num else 0
         elif work_type == 'weekend':
@@ -703,26 +739,57 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
 
         log.save()
 
+        _is_weekend = calendar.weekday(year, month, day) >= 5
+        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
+        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
+
+        # 상태 칸 — 연차/반차 합계/누계 OOB 업데이트 포함
+        if work_type == 'status':
+            _leave_expr = Sum(Case(
+                When(status_text='연차', then=Value(1.0)),
+                When(status_text='반차', then=Value(0.5)),
+                default=Value(0.0),
+                output_field=FloatField()
+            ))
+            monthly_leave = AttendanceLog.objects.filter(
+                emp_id=emp_id, work_dt__year=year, work_dt__month=month,
+                status_text__in=['연차', '반차']
+            ).aggregate(total=_leave_expr)['total'] or 0.0
+            cum_leave = AttendanceLog.objects.filter(
+                emp_id=emp_id, work_dt__year=year, work_dt__month__lte=month,
+                status_text__in=['연차', '반차']
+            ).aggregate(total=_leave_expr)['total'] or 0.0
+
+            display = html.escape(user_input)
+            return HttpResponse(f'''
+        <td class="editable-cell text-center{bg_class}"
+            hx-get="/hr/attendance/edit/{emp_id}/{year}/{month}/{day}/{work_type}/"
+            hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+            {display}
+        </td>
+        <td id="total-status-{emp_id}" hx-swap-oob="true" class="fw-bold">
+            {monthly_leave:.1f}
+        </td>
+        <td id="cum-status-{emp_id}" hx-swap-oob="true" class="fw-bold">
+            {cum_leave:.1f}
+        </td>
+        ''')
+
         # work_type → 필드명 매핑 (월합계/누계 공용)
         cum_field_map = {'normal': 'normal_hours', 'ot': 'ot_hours', 'weekend': 'weekend_hours'}
         cum_id_map = {'normal': f'cum-normal-{emp_id}', 'ot': f'cum-ot-{emp_id}', 'weekend': f'cum-holiday-{emp_id}'}
 
-        # 월 합계 재계산 (실시간 업데이트용)
+        # 월 합계 재계산
         total = AttendanceLog.objects.filter(
             emp_id=emp_id, work_dt__year=year, work_dt__month=month
         ).aggregate(res=Sum(cum_field_map[work_type]))['res'] or 0
 
-        # 결과 HTML 조립 (셀 복구 + 합계 OOB 스왑)
-        s_text = log.status_text if log.status_text else ""
-        s_hours = ""
-        if log.ot_hours > 0:
-            val = float(log.ot_hours)
-            s_hours = str(int(val)) if val % 1 == 0 else str(val)
-
-        display = html.escape(f"{s_text} {s_hours}".strip())
-
-        if work_type != 'ot':
-            display = html.escape(f"{num_val if is_num and num_val > 0 else ''}")
+        # 결과 표시값
+        if work_type == 'ot':
+            val = float(log.ot_hours or 0)
+            display = html.escape(str(int(val)) if val % 1 == 0 else str(val)) if val > 0 else ""
+        else:
+            display = html.escape(str(num_val) if is_num and num_val > 0 else "")
 
         target_total_id = f"total-{work_type}-{emp_id}"
 
@@ -732,10 +799,6 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             work_dt__year=year,
             work_dt__month__lte=month
         ).aggregate(res=Sum(cum_field_map[work_type]))['res'] or 0
-
-        _is_weekend = calendar.weekday(year, month, day) >= 5
-        _is_holiday = date(year, month, day) in _get_kr_holidays(year) and not _is_weekend
-        bg_class = " bg-weekend" if _is_weekend else (" bg-holiday" if _is_holiday else "")
 
         response_html = f'''
         <td class="editable-cell text-center{bg_class}"
@@ -760,6 +823,47 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             f'title="{html.escape(str(e))}">오류</td>',
             status=500
         )
+
+
+# ─── 근태 비고 ────────────────────────────────────────────────────────────────
+
+@login_required
+def edit_attendance_remark(request, emp_id, year, month):
+    obj = AttendanceRemark.objects.filter(emp_id=emp_id, year=year, month=month).first()
+    current = obj.remark if obj else ''
+    safe_val = html.escape(current)
+    return HttpResponse(f'''
+        <div id="remark-{emp_id}" style="padding:2px;">
+            <textarea name="remark"
+                style="width:100%; height:86px; font-size:11px; border:1px solid #86b7fe; border-radius:4px; resize:none; outline:none; overflow-y:auto;"
+                hx-post="/hr/attendance/remark/save/{emp_id}/{year}/{month}/"
+                hx-trigger="blur, keyup[key==\'Escape\']"
+                hx-target="#remark-{emp_id}" hx-swap="outerHTML"
+                autofocus>{safe_val}</textarea>
+        </div>
+    ''')
+
+
+@login_required
+@require_POST
+def save_attendance_remark(request, emp_id, year, month):
+    remark = request.POST.get('remark', '').strip()
+    obj, _ = AttendanceRemark.objects.get_or_create(
+        emp_id=emp_id, year=year, month=month,
+        defaults={'remark': ''}
+    )
+    obj.remark = remark
+    obj.save()
+    safe_val = html.escape(remark)
+    return HttpResponse(f'''
+        <div id="remark-{emp_id}"
+             style="cursor:pointer; white-space:pre-wrap; height:90px; overflow-y:auto; padding:2px;"
+             hx-get="/hr/attendance/remark/edit/{emp_id}/{year}/{month}/"
+             hx-trigger="click"
+             hx-target="#remark-{emp_id}" hx-swap="outerHTML">
+            {safe_val}
+        </div>
+    ''')
 
 
 # ─── 연차 관리 ────────────────────────────────────────────────────────────────

@@ -268,8 +268,10 @@ class AttendanceLog(models.Model):
         db_table = 'hr_attendance_log'
         verbose_name = '근태 기록'
         verbose_name_plural = '근태 기록'
-        # 한 사원이 같은 날짜에 중복된 기록을 갖지 못하도록 제약
         unique_together = ('emp', 'work_dt')
+        indexes = [
+            models.Index(fields=['emp', 'work_dt'], name='idx_atndlog_emp_dt'),
+        ]
 
     def __str__(self):
         return f"{self.work_dt} {self.emp.emp_nm} (정상:{self.normal_hours}/OT:{self.ot_hours})"
@@ -298,6 +300,29 @@ class LateRecord(models.Model):
 
     def __str__(self):
         return f"{self.year}년 {self.month}월 {self.emp.emp_nm} 지각 {self.count}회"
+
+
+class AttendanceRemark(models.Model):
+    """근태 월별 비고 — 사원별 연월별 메모"""
+    emp = models.ForeignKey(
+        'Employee',
+        on_delete=models.CASCADE,
+        db_column='emp_id',
+        related_name='attendance_remarks',
+        verbose_name="사원코드"
+    )
+    year = models.IntegerField(verbose_name="연도")
+    month = models.IntegerField(verbose_name="월")
+    remark = models.TextField(blank=True, default='', verbose_name="비고")
+
+    class Meta:
+        db_table = 'hr_attendance_remark'
+        unique_together = ('emp', 'year', 'month')
+        verbose_name = '근태 비고'
+        verbose_name_plural = '근태 비고'
+
+    def __str__(self):
+        return f"{self.year}년 {self.month}월 {self.emp.emp_nm} 비고"
 
 
 class AnnualLeave(models.Model):

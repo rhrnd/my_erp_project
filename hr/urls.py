@@ -29,6 +29,10 @@ urlpatterns = [
          views.save_attendance_cell, name='save_attendance_cell'),
     path('attendance/cancel/<int:emp_id>/<int:year>/<int:month>/<int:day>/<str:work_type>/',
          views.cancel_attendance_cell, name='cancel_attendance_cell'),
+    path('attendance/remark/edit/<int:emp_id>/<int:year>/<int:month>/',
+         views.edit_attendance_remark, name='edit_attendance_remark'),
+    path('attendance/remark/save/<int:emp_id>/<int:year>/<int:month>/',
+         views.save_attendance_remark, name='save_attendance_remark'),
 
     # 급여명세서 인쇄
     path('payslip/print/', views.print_payslip, name='print_payslip'),
