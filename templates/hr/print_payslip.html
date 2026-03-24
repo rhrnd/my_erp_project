@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load humanize %}<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -63,78 +63,71 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
             <tbody>
                 {# 통상임금 구간 4행 #}
                 <tr>
-                    <td rowspan="3" class="item-label" style="writing-mode:vertical-lr; font-size:14px; border-right:1px solid #ccc; border-bottom:1px solid #111;">통상임금</td>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">기&nbsp;&nbsp;&nbsp;&nbsp;본&nbsp;&nbsp;&nbsp;&nbsp;급</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.base_amt|floatformat:0|default:"" }}</td>
+                    <td rowspan="3" class="item-label" style="writing-mode:vertical-lr; font-size:13px; border-right:1px solid #ccc; border-bottom:1px solid #111;">통상임금</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">기&nbsp;&nbsp;&nbsp;&nbsp;본&nbsp;&nbsp;&nbsp;&nbsp;급</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.base_amt|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">갑&nbsp;&nbsp;&nbsp;&nbsp;근&nbsp;&nbsp;&nbsp;&nbsp;세</td>
-                    <td class="amount-cell">{{ salary.income_tax|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.income_tax|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">직&nbsp;급&nbsp;,&nbsp;책&nbsp;임&nbsp;수&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.pos_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">직&nbsp;급&nbsp;,&nbsp;책&nbsp;임&nbsp;수&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.pos_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">주&nbsp;&nbsp;&nbsp;&nbsp;민&nbsp;&nbsp;&nbsp;&nbsp;세</td>
-                    <td class="amount-cell">{{ salary.local_income_tax|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.local_income_tax|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">경&nbsp;&nbsp;&nbsp;&nbsp;력&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.exp_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">경&nbsp;&nbsp;&nbsp;&nbsp;력&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.exp_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">건&nbsp;&nbsp;&nbsp;&nbsp;강&nbsp;&nbsp;&nbsp;&nbsp;보&nbsp;&nbsp;&nbsp;&nbsp;험</td>
-                    <td class="amount-cell">{{ salary.health_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.health_ins|floatformat:0|intcomma }}</td>
                 </tr>
-                {% comment %} <tr>
-                    <td class="item-label" style="border-bottom:2px solid #111; border-right:1px solid #ccc;"></td>
-                    <td class="amount-cell" style="border-right:4px double #111; border-bottom:2px solid #111;"></td>
-                    <td class="item-label" style="border-bottom:2px solid #111; border-right:1px solid #ccc;"></td>
-                    <td class="amount-cell" style="border-bottom:2px solid #111;"></td>
-                </tr> {% endcomment %}
-
                 {# 수당 구간 8행 #}
                 <tr>
                     <td rowspan="8" class="item-label" style="writing-mode:vertical-lr; font-size:14px; border-right:1px solid #ccc; border-bottom:1px solid #111;">수&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">주&nbsp;&nbsp;&nbsp;&nbsp;휴&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.weekly_holiday_pay|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">주&nbsp;&nbsp;&nbsp;&nbsp;휴&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.weekly_holiday_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">국&nbsp;&nbsp;&nbsp;&nbsp;민&nbsp;&nbsp;&nbsp;&nbsp;연&nbsp;&nbsp;&nbsp;&nbsp;금</td>
-                    <td class="amount-cell">{{ salary.national_pension|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.national_pension|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">시&nbsp;&nbsp;간&nbsp;&nbsp;외&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.ot_pay|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">시&nbsp;&nbsp;간&nbsp;&nbsp;외&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.ot_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">고&nbsp;&nbsp;&nbsp;&nbsp;용&nbsp;&nbsp;&nbsp;&nbsp;보&nbsp;&nbsp;&nbsp;&nbsp;험</td>
-                    <td class="amount-cell">{{ salary.emp_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.emp_ins|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">비&nbsp;&nbsp;흡&nbsp;&nbsp;연&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.non_smoke_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">비&nbsp;&nbsp;흡&nbsp;&nbsp;연&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.non_smoke_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">노인 장기 요양보험</td>
-                    <td class="amount-cell">{{ salary.longterm_care_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.longterm_care_ins|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">업&nbsp;무&nbsp;기&nbsp;능&nbsp;수&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">업&nbsp;무&nbsp;기&nbsp;능&nbsp;수&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">통&nbsp;&nbsp;신&nbsp;&nbsp;보&nbsp;&nbsp;조&nbsp;&nbsp;비</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">통&nbsp;&nbsp;신&nbsp;&nbsp;보&nbsp;&nbsp;조&nbsp;&nbsp;비</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">특&nbsp;&nbsp;&nbsp;&nbsp;별&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.special_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">특&nbsp;&nbsp;&nbsp;&nbsp;별&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.special_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">식&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;대&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;비</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.meal_pay|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">식&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;대&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;비</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.meal_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
-                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">자가운전 보&nbsp;&nbsp;조&nbsp;&nbsp;금</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.car_allowance|floatformat:0|default:"" }}</td>
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">자가운전 보&nbsp;&nbsp;조&nbsp;&nbsp;금</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.car_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
@@ -142,15 +135,15 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
                 {# 합계행 #}
                 <tr>
                     <td colspan="2" style="text-align:center; font-weight:700; font-size:13px; letter-spacing:2px; border-right:1px solid #ccc; border-top:2px solid #111; border-bottom:1px solid #111; padding:4px;">지 급 총 액</td>
-                    <td class="amount-cell" style="border-right:4px double #111; border-top:2px solid #111; font-size:13px;">{{ salary.total_gross_amt|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111; border-top:2px solid #111; font-size:13px;">{{ salary.total_gross_amt|floatformat:0|intcomma }}</td>
                     <td style="text-align:center; font-weight:700; font-size:13px; letter-spacing:2px; border-right:1px solid #ccc; border-top:2px solid #111; border-bottom:1px solid #111; padding:4px;">공 제 합 계</td>
-                    <td class="amount-cell" style="border-top:2px solid #111; font-size:13px;">{{ salary.total_deduction_amt|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-top:2px solid #111; font-size:13px;">{{ salary.total_deduction_amt|floatformat:0|intcomma }}</td>
                 </tr>
 
                 {# 차인지급액 #}
                 <tr>
-                    <td colspan="3" style="border-right:4px double #111; border-top:2px solid #111; background:#ede3cf; text-align:center; font-size:14px; font-weight:700; letter-spacing:4px; padding:10px;">차 인 지 급 액</td>
-                    <td colspan="2" style="border-top:2px solid #111; background:#ede3cf; text-align:right; font-size:14px; font-weight:700; letter-spacing:4px; padding:10px;">{{ salary.net_pay_amt|floatformat:0|default:"" }} </td>
+                    <td colspan="3" style="border-right:4px double #111; border-top:2px solid #111; background:#ede3cf; text-align:center; font-size:13px; font-weight:700; letter-spacing:2px; padding:5px;">차 인 지 급 액</td>
+                    <td colspan="2" style="border-top:2px solid #111; background:#ede3cf; text-align:right; font-size:13px; font-weight:700; letter-spacing:2px; padding:5px;">{{ salary.net_pay_amt|floatformat:0|intcomma }} </td>
                 </tr>
             </tbody>
         </table>
@@ -167,10 +160,10 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
             <tbody>
                 <tr>
                     <td style="border:none; background:#fff;"></td>
-                    <td style="text-align:center; font-weight:700; font-size:12px; padding:4px; border-right:1px solid #111;">당월 사용 연차</td>
-                    <td style="text-align:right; font-weight:700; font-size:12px; padding-right:8px; border-right:2px solid #111;">{{ salary.leave_used }}</td>
-                    <td style="text-align:center; font-weight:700; font-size:12px; padding:4px; border-right:1px solid #111;">남 은 연 차 수</td>
-                    <td style="text-align:right; font-weight:700; font-size:12px; padding-right:8px;">{{ salary.leave_remaining }}</td>
+                    <td style="text-align:center; font-weight:700; font-size:13px; padding:4px; border-right:1px solid #111;">당월 사용 연차</td>
+                    <td style="text-align:right; font-weight:700; font-size:13px; padding-right:8px; border-right:2px solid #111;">{{ salary.leave_used }}</td>
+                    <td style="text-align:center; font-weight:700; font-size:13px; padding:4px; border-right:1px solid #111;">남 은 연 차 수</td>
+                    <td style="text-align:right; font-weight:700; font-size:13px; padding-right:8px;">{{ salary.leave_remaining }}</td>
                 </tr>
             </tbody>
         </table>
@@ -215,21 +208,21 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
                 <tr>
                     <td rowspan="3" class="item-label" style="writing-mode:vertical-lr; font-size:14px; border-right:1px solid #ccc; border-bottom:1px solid #111;">통상임금</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">기&nbsp;&nbsp;&nbsp;&nbsp;본&nbsp;&nbsp;&nbsp;&nbsp;급</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.base_amt|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.base_amt|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">갑&nbsp;&nbsp;&nbsp;&nbsp;근&nbsp;&nbsp;&nbsp;&nbsp;세</td>
-                    <td class="amount-cell">{{ salary.income_tax|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.income_tax|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">직&nbsp;급&nbsp;,&nbsp;책&nbsp;임&nbsp;수&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.pos_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.pos_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">주&nbsp;&nbsp;&nbsp;&nbsp;민&nbsp;&nbsp;&nbsp;&nbsp;세</td>
-                    <td class="amount-cell">{{ salary.local_income_tax|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.local_income_tax|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">경&nbsp;&nbsp;&nbsp;&nbsp;력&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.exp_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.exp_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">건&nbsp;&nbsp;&nbsp;&nbsp;강&nbsp;&nbsp;&nbsp;&nbsp;보&nbsp;&nbsp;&nbsp;&nbsp;험</td>
-                    <td class="amount-cell">{{ salary.health_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.health_ins|floatformat:0|intcomma }}</td>
                 </tr>
                 {% comment %} <tr>
                     <td class="item-label" style="border-bottom:2px solid #111; border-right:1px solid #ccc;"></td>
@@ -240,61 +233,61 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
                 <tr>
                     <td rowspan="8" class="item-label" style="writing-mode:vertical-lr; font-size:14px; border-right:1px solid #ccc; border-bottom:1px solid #111;">수&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;당</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">주&nbsp;&nbsp;&nbsp;&nbsp;휴&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.weekly_holiday_pay|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.weekly_holiday_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">국&nbsp;&nbsp;&nbsp;&nbsp;민&nbsp;&nbsp;&nbsp;&nbsp;연&nbsp;&nbsp;&nbsp;&nbsp;금</td>
-                    <td class="amount-cell">{{ salary.national_pension|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.national_pension|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">시&nbsp;&nbsp;간&nbsp;&nbsp;외&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.ot_pay|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.ot_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">고&nbsp;&nbsp;&nbsp;&nbsp;용&nbsp;&nbsp;&nbsp;&nbsp;보&nbsp;&nbsp;&nbsp;&nbsp;험</td>
-                    <td class="amount-cell">{{ salary.emp_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.emp_ins|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">비&nbsp;&nbsp;흡&nbsp;&nbsp;연&nbsp;&nbsp;수&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.non_smoke_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.non_smoke_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">노인 장기 요양보험</td>
-                    <td class="amount-cell">{{ salary.longterm_care_ins|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell">{{ salary.longterm_care_ins|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">업&nbsp;무&nbsp;기&nbsp;능&nbsp;수&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">통&nbsp;&nbsp;신&nbsp;&nbsp;보&nbsp;&nbsp;조&nbsp;&nbsp;비</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">특&nbsp;&nbsp;&nbsp;&nbsp;별&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.special_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.special_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">식&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;대&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;비</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.meal_pay|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.meal_pay|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">자가운전 보&nbsp;&nbsp;조&nbsp;&nbsp;금</td>
-                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.car_allowance|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111;">{{ salary.car_allowance|floatformat:0|intcomma }}</td>
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
                 </tr>
                 <tr>
                     <td colspan="2" style="text-align:center; font-weight:700; font-size:13px; letter-spacing:2px; border-right:1px solid #ccc; border-top:2px solid #111; border-bottom:1px solid #111; padding:4px;">지 급 총 액</td>
-                    <td class="amount-cell" style="border-right:4px double #111; border-top:2px solid #111; font-size:13px;">{{ salary.total_gross_amt|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-right:4px double #111; border-top:2px solid #111; font-size:13px;">{{ salary.total_gross_amt|floatformat:0|intcomma }}</td>
                     <td style="text-align:center; font-weight:700; font-size:13px; letter-spacing:2px; border-right:1px solid #ccc; border-top:2px solid #111; border-bottom:1px solid #111; padding:4px;">공 제 합 계</td>
-                    <td class="amount-cell" style="border-top:2px solid #111; font-size:13px;">{{ salary.total_deduction_amt|floatformat:0|default:"" }}</td>
+                    <td class="amount-cell" style="border-top:2px solid #111; font-size:13px;">{{ salary.total_deduction_amt|floatformat:0|intcomma }}</td>
                 </tr>
                 <tr>
                     <td colspan="3" style="border-right:4px double #111; border-top:2px solid #111; background:#ede3cf; text-align:center; font-size:14px; font-weight:700; letter-spacing:4px; padding:10px;">차 인 지 급 액</td>
-                    <td colspan="2" style="border-top:2px solid #111; background:#ede3cf; text-align:right; font-size:14px; font-weight:700; letter-spacing:4px; padding:10px;">{{ salary.net_pay_amt|floatformat:0|default:"" }} </td>
+                    <td colspan="2" style="border-top:2px solid #111; background:#ede3cf; text-align:right; font-size:14px; font-weight:700; letter-spacing:4px; padding:10px;">{{ salary.net_pay_amt|floatformat:0|intcomma }} </td>
                 </tr>
             </tbody>
         </table>

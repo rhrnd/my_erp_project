@@ -28,3 +28,21 @@ class SalaryRate(models.Model):
 
     def __str__(self):
         return f"{self.year}년 급여 요율"
+
+
+class SalaryFormula(models.Model):
+    salary_field = models.CharField(max_length=50, unique=True, verbose_name="Salary 필드명")
+    display_name = models.CharField(max_length=50, verbose_name="항목명")
+    formula_expr = models.CharField(max_length=300, verbose_name="계산식")
+    description = models.TextField(blank=True, verbose_name="설명")
+    is_active = models.BooleanField(default=True, verbose_name="사용 여부")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="순서")
+
+    class Meta:
+        db_table = 'tax_salary_formula'
+        ordering = ['order']
+        verbose_name = '급여 계산식'
+        verbose_name_plural = '급여 계산식'
+
+    def __str__(self):
+        return f"{self.display_name} = {self.formula_expr}"
