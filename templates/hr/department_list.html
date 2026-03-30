@@ -8,53 +8,50 @@
     </button>
 </div>
 
-<!-- 부서 목록 테이블 -->
-<div class="card shadow mb-4">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle text-center" style="table-layout: fixed;">
-                <colgroup>
-                    <col style="width: 200px;">
-                    <col style="width: 200px;">
-                    <col style="width: 100px;">
-                    <col style="width: 100px;">
-                </colgroup>
-                <thead class="table-light">
-                    <tr>
-                        <th>소속회사명</th>
-                        <th>부서명</th>
-                        <th>상태</th>
-                        <th>관리</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for dept in departments %}
-                    <tr>
-                        <td>{{ dept.dept_comp }}</td>
-                        <td class="fw-bold">{{ dept.dept_nm }}</td>
-                        <td>
-                            {% if dept.in_use %}
-                            <span class="badge bg-success bg-opacity-10 text-success">사용중</span>
-                            {% else %}
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary">미사용</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary"
-                                onclick="openUpdateModal('{{ dept.dept_id }}', '{{ dept.dept_comp }}', '{{ dept.dept_nm }}', '{{ dept.in_use|yesno:'true,false' }}')">
-                                수정
-                            </button>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="py-4 text-muted">등록된 부서가 없습니다.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- 회사별 부서 테이블 -->
+<div class="row g-5">
+    {% for company in companies %}
+    <div class="col-md-5">
+        <div class="card shadow h-100">
+            <div class="card-header fw-bold bg-light py-2" style="font-size: 1.2rem;">
+                {{ company.name }}
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0 align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>부서명</th>
+                            <th style="width:90px;">상태</th>
+                            <th style="width:70px;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dept in company.depts %}
+                        <tr>
+                            <td class="fw-bold text-center">{{ dept.dept_nm }}</td>
+                            <td>
+                                {% if dept.in_use %}                                              
+                                <span class="badge bg-success bg-opacity-10 text-success">사용중</span>
+                                {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">미사용</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary"
+                                    onclick="openUpdateModal('{{ dept.dept_id }}', '{{ dept.dept_comp }}', '{{ dept.dept_nm }}', '{{ dept.in_use|yesno:'true,false' }}')">
+                                    수정
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+    {% empty %}
+    <div class="col-12 text-muted py-4 text-center">등록된 부서가 없습니다.</div>
+    {% endfor %}
 </div>
 
 <!-- 부서 등록/수정 모달 -->
@@ -70,7 +67,12 @@
                     <input type="hidden" id="deptId">
                     <div class="mb-3">
                         <label class="form-label">소속회사명</label>
-                        <input type="text" class="form-control" id="deptComp" placeholder="소속회사명을 입력하세요">
+                        <select class="form-select" id="deptComp">
+                            <option value="">회사를 선택하세요</option>
+                            {% for company in companies %}
+                            <option value="{{ company.name }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">부서명</label>

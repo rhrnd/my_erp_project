@@ -53,10 +53,10 @@
                 <table class="table table-hover table-bordered align-middle mb-0 text-center">
                 <thead class="table-light">
                     <tr>
-                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="0">소속회사명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
-                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="1">입사일자 <i class="sort-icon fas fa-sort-up ms-1"></i></th>
-                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="2">사원번호 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
-                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="3">성명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="0">입사일자 <i class="sort-icon fas fa-sort-up ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="1">사원번호 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 100px; cursor:pointer;" data-col="2">성명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
+                        <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="3">소속회사명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
                         <th class="text-nowrap-cell sortable" style="width: 120px; cursor:pointer;" data-col="4">부서명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
                         <th class="text-nowrap-cell sortable" style="width: 80px; cursor:pointer;" data-col="5">직급명 <i class="sort-icon fas fa-sort text-muted ms-1"></i></th>
                         <th class="text-nowrap-cell" style="width: 140px;">전화번호</th>
@@ -78,10 +78,10 @@
                         data-emp-add="{{ emp.emp_add|default:'' }}"
                         data-emp-hire="{{ emp.emp_hire|date:'Y-m-d' }}"
                         data-emp-retire="{{ emp.emp_retire_dt|date:'Y-m-d'|default:'' }}">
-                        <td class="text-nowrap-cell">{{ emp.dept.dept_comp }}</td>
                         <td class="text-muted text-nowrap-cell editable-cell" data-field="emp_hire" data-value="{{ emp.emp_hire|date:'Y-m-d' }}">{{ emp.emp_hire }}</td>
                         <td class="text-nowrap-cell">{{ emp.emp_no }}</td>
                         <td class="fw-bold text-nowrap-cell editable-cell" data-field="emp_nm" data-value="{{ emp.emp_nm }}">{{ emp.emp_nm }}</td>
+                        <td class="text-nowrap-cell">{{ emp.dept.dept_comp }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="dept" data-value="{{ emp.dept.dept_id }}">{{ emp.dept.dept_nm }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="emp_pos" data-value="{{ emp.emp_pos|blank }}">{{ emp.emp_pos|blank }}</td>
                         <td class="text-nowrap-cell editable-cell" data-field="emp_tel" data-value="{{ emp.emp_tel|blank }}">{{ emp.emp_tel|blank }}</td>
@@ -150,7 +150,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">부서 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="empDept">
+                        <select class="form-select" id="empDept" disabled>
                             <option value="">회사를 먼저 선택하세요</option>
                             {% for dept in departments %}
                             <option value="{{ dept.dept_id }}" data-comp="{{ dept.dept_comp }}">{{ dept.dept_nm }}</option>
@@ -336,7 +336,7 @@
     }
 
     // 테이블 정렬
-    let sortCol = 1;    // 기본: 입사일자 (col index 1)
+    let sortCol = 0;    // 기본: 입사일자 (col index 0)
     let sortAsc = true; // 기본: 오름차순
 
     function sortTable(colIndex, asc) {
@@ -421,19 +421,27 @@
         const options = deptSelect.querySelectorAll('option');
 
         deptSelect.value = '';
-        options.forEach(opt => {
-            if (!opt.value) return; // 기본 placeholder 옵션 유지
-            opt.style.display = opt.dataset.comp === selectedComp ? '' : 'none';
-        });
-        deptSelect.querySelector('option[value=""]').textContent = selectedComp ? '부서를 선택하세요' : '회사를 먼저 선택하세요';
+        if (selectedComp) {
+            deptSelect.disabled = false;
+            options.forEach(opt => {
+                if (!opt.value) return;
+                opt.style.display = opt.dataset.comp === selectedComp ? '' : 'none';
+            });
+            deptSelect.querySelector('option[value=""]').textContent = '부서를 선택하세요';
+        } else {
+            deptSelect.disabled = true;
+            options.forEach(opt => { if (opt.value) opt.style.display = 'none'; });
+            deptSelect.querySelector('option[value=""]').textContent = '회사를 먼저 선택하세요';
+        }
     }
 
     // 신규 사원 등록 모달
     function openCreateModal() {
         document.getElementById('addEmployeeForm').reset();
-        // 부서 옵션 전체 표시 초기화
-        document.getElementById('empDept').querySelectorAll('option').forEach(opt => opt.style.display = '');
-        document.getElementById('empDept').querySelector('option[value=""]').textContent = '회사를 먼저 선택하세요';
+        const deptSelect = document.getElementById('empDept');
+        deptSelect.querySelectorAll('option').forEach(opt => opt.style.display = '');
+        deptSelect.querySelector('option[value=""]').textContent = '회사를 먼저 선택하세요';
+        deptSelect.disabled = true;
         employeeModal.show();
     }
 

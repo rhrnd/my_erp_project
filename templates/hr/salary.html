@@ -129,13 +129,15 @@
         <div class="table-responsive w-100">
             <table class="table table-hover mb-0 text-center salary-table" id="salaryTable" style="font-size: 0.8rem; white-space: nowrap; min-width: 1800px;">
                 <colgroup>
+                    <!-- 제외 체크박스 (숨김) -->
+                    <col class="exclude-col" style="width: 35px; display:none;">
                     <!-- 고정열: 체크박스(35), 사원번호(80), 성명(70), 직급(60) -->
                     <col style="width: 35px;">
                     <col style="width: 80px;">
                     <col style="width: 70px;">
                     <col style="width: 60px;">
                     <!-- 통상임금 3열 -->
-                    <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
+                    <col style="width: 80px;"><col style="width: 80px;"><col style="width: 80px;">
                     <!-- 수당 8열 -->
                     <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
                     <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
@@ -151,6 +153,7 @@
                 </colgroup>
                 <thead class="sticky-top">
                     <tr>
+                        <th rowspan="2" class="exclude-col text-center" style="display:none; min-width:35px; background:#fff8e1;">제외</th>
                         <th rowspan="2" class="sticky-col sticky-col-0" style="min-width:35px;"></th>
                         <th rowspan="2" class="sticky-col sticky-col-1">사원번호</th>
                         <th rowspan="2" class="sticky-col sticky-col-2">성명</th>
@@ -194,11 +197,22 @@
                 <tbody>
                     {% for salary in salaries %}
                     <tr>
+                        <td class="exclude-col text-center" style="display:none; background:#fff8e1;">
+                            <input type="checkbox" class="exclude-check" value="{{ salary.salary_rec_id }}">
+                        </td>
                         <td class="sticky-col sticky-col-0 text-center">
                             <input type="checkbox" name="salary_id" value="{{ salary.salary_rec_id }}">
                         </td>
                         <td class="sticky-col sticky-col-1">{{ salary.emp.emp_no }}</td>
-                        <td class="fw-bold sticky-col sticky-col-2">{{ salary.emp.emp_nm }}</td>
+                        <td class="fw-bold sticky-col sticky-col-2" style="cursor:pointer;"
+                            data-salary-id="{{ salary.pk }}"
+                            data-emp-nm="{{ salary.emp.emp_nm }}"
+                            data-salary-month="{{ salary.salary_month }}"
+                            data-remark="{{ salary.remark|default:'' }}"
+                            onclick="openRemarkModal(this)">
+                            {{ salary.emp.emp_nm }}
+                            {% if salary.remark %}<i class="fas fa-sticky-note text-warning ms-1" style="font-size:10px;"></i>{% endif %}
+                        </td>
                         <td class="sticky-col sticky-col-3">{{ salary.emp.emp_pos|default:"" }}</td>
                         
                         <!-- 통상임금 -->
@@ -235,7 +249,7 @@
                         <!-- 결과 -->
                         <td class="text-end fw-bold bg-orange-200 bg-opacity-25" data-field="total_deduction_amt">{{ salary.total_deduction_amt|intcomma }}</td>
                         <td class="text-end fw-bold bg-yellow-400 bg-opacity-25" data-field="net_pay_amt">{{ salary.net_pay_amt|intcomma }}</td>
-                        <td class="text-end bg-yellow-400 bg-opacity-25 editable-cell" data-id="{{ salary.pk }}" data-field="tax_free_exclusion" data-value="{{ salary.tax_free_exclusion }}">{{ salary.tax_free_exclusion|intcomma }}</td>
+                        <td class="text-end fw-bold bg-yellow-400 bg-opacity-25" data-field="tax_free_exclusion">{{ salary.tax_free_exclusion|intcomma }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -302,6 +316,9 @@
         <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="autoCalculate()">
             <i class="fas fa-calculator me-1"></i> 보험료 자동 계산
         </button>
+        <button class="btn btn-outline-warning btn-sm shadow-sm" id="excludeToggleBtn" onclick="toggleExclude()">
+            <i class="fas fa-user-slash me-1"></i> 제외
+        </button>
         {% else %}
         <span class="text-danger" style="font-size:12px;">
             <i class="fas fa-exclamation-triangle me-1"></i>{{ selected_year }}년 요율 미등록
@@ -335,14 +352,66 @@ function printAll() {
     window.open(`/hr/payslip/print/?salary_ids=${ids}`, '_blank');
 }
 
+const SALARY_MONTH = '{{ selected_year }}-{{ selected_month|stringformat:"02d" }}';
+const EXCLUDE_KEY = `salary_exclude_${SALARY_MONTH}`;
+let excludeMode = false;
+
+function saveExcludeState() {
+    const ids = [...document.querySelectorAll('.exclude-check:checked')].map(el => el.value);
+    localStorage.setItem(EXCLUDE_KEY, JSON.stringify(ids));
+}
+
+function loadExcludeState() {
+    const saved = JSON.parse(localStorage.getItem(EXCLUDE_KEY) || '[]');
+    if (saved.length === 0) return;
+    saved.forEach(id => {
+        const cb = document.querySelector(`.exclude-check[value="${id}"]`);
+        if (cb) cb.checked = true;
+    });
+}
+
+function toggleExclude() {
+    excludeMode = !excludeMode;
+    document.querySelectorAll('.exclude-col').forEach(el => {
+        el.style.display = excludeMode ? '' : 'none';
+    });
+    const btn = document.getElementById('excludeToggleBtn');
+    btn.classList.toggle('btn-outline-warning', !excludeMode);
+    btn.classList.toggle('btn-warning', excludeMode);
+    btn.innerHTML = excludeMode
+        ? '<i class="fas fa-check me-1"></i> 제외 완료'
+        : '<i class="fas fa-user-slash me-1"></i> 제외';
+}
+
+// 페이지 로드 시 저장된 제외 목록 복원
+document.addEventListener('DOMContentLoaded', function () {
+    loadExcludeState();
+    // 체크박스 변경 시 자동 저장
+    document.querySelectorAll('.exclude-check').forEach(cb => {
+        cb.addEventListener('change', saveExcludeState);
+    });
+    // 저장된 제외 인원이 있으면 제외 컬럼 자동 표시
+    const saved = JSON.parse(localStorage.getItem(EXCLUDE_KEY) || '[]');
+    if (saved.length > 0) {
+        excludeMode = true;
+        document.querySelectorAll('.exclude-col').forEach(el => el.style.display = '');
+        const btn = document.getElementById('excludeToggleBtn');
+        if (btn) {
+            btn.classList.replace('btn-outline-warning', 'btn-warning');
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> 제외 완료';
+        }
+    }
+});
+
 function autoCalculate() {
-    const salaryMonth = '{{ selected_year }}-{{ selected_month|stringformat:"02d" }}';
-    if (!confirm(`${salaryMonth} 급여 전체에 등록된 요율로 보험료를 자동 계산합니다.\n기존에 입력된 보험료 값은 덮어씁니다. 계속하시겠습니까?`)) return;
+    const excludeIds = [...document.querySelectorAll('.exclude-check:checked')].map(el => parseInt(el.value));
+    const excludeMsg = excludeIds.length > 0 ? `\n(${excludeIds.length}명 제외)` : '';
+    if (!confirm(`${SALARY_MONTH} 급여에 등록된 요율로 보험료를 자동 계산합니다.${excludeMsg}\n기존에 입력된 보험료 값은 덮어씁니다. 계속하시겠습니까?`)) return;
 
     fetch("{% url 'tax:salary_auto_calculate' %}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: JSON.stringify({ salary_month: salaryMonth })
+        body: JSON.stringify({ salary_month: SALARY_MONTH, exclude_ids: excludeIds })
     })
     .then(r => r.json())
     .then(res => {
@@ -431,9 +500,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const td = row.querySelector('[data-field="total_deduction_amt"]');
                     const np = row.querySelector('[data-field="net_pay_amt"]');
 
+                    const tf = row.querySelector('[data-field="tax_free_exclusion"]');
                     if (tg) tg.innerText = data.row_total_gross.toLocaleString();
                     if (td) td.innerText = data.row_total_deduction.toLocaleString();
                     if (np) np.innerText = data.row_net_pay.toLocaleString();
+                    if (tf) { tf.innerText = data.row_tax_free_exclusion.toLocaleString(); tf.dataset.value = data.row_tax_free_exclusion; }
 
                     // 하단 전체 합계 실시간 업데이트
                     Object.keys(data.totals).forEach(totalField => {
@@ -466,5 +537,75 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         window.location.href = url.toString();
     });
+</script>
+
+<!-- 비고 모달 -->
+<div class="modal fade" id="salaryRemarkModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="salaryRemarkModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="salaryRemarkInput" class="form-control" rows="6" placeholder="비고 내용을 입력하세요."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveRemark()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let remarkModal;
+    let remarkSalaryId;
+    let remarkCell;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        remarkModal = new bootstrap.Modal(document.getElementById('salaryRemarkModal'));
+    });
+
+    function openRemarkModal(cell) {
+        remarkSalaryId = cell.dataset.salaryId;
+        remarkCell = cell;
+        const empNm = cell.dataset.empNm;
+        const month = cell.dataset.salaryMonth;
+        document.getElementById('salaryRemarkModalTitle').textContent = `${empNm} — ${month} 비고`;
+        document.getElementById('salaryRemarkInput').value = cell.dataset.remark || '';
+        remarkModal.show();
+        setTimeout(() => document.getElementById('salaryRemarkInput').focus(), 300);
+    }
+
+    function saveRemark() {
+        const value = document.getElementById('salaryRemarkInput').value;
+        fetch("{% url 'hr:salary_update' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ salary_id: remarkSalaryId, field: 'remark', value: value })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                remarkCell.dataset.remark = value;
+                // 비고 아이콘 표시/숨김
+                const icon = remarkCell.querySelector('.fa-sticky-note');
+                if (value.trim()) {
+                    if (!icon) {
+                        const i = document.createElement('i');
+                        i.className = 'fas fa-sticky-note text-warning ms-1';
+                        i.style.fontSize = '10px';
+                        remarkCell.appendChild(i);
+                    }
+                } else {
+                    if (icon) icon.remove();
+                }
+                remarkModal.hide();
+            } else {
+                alert('저장 실패: ' + res.message);
+            }
+        });
+    }
 </script>
 {% endblock %}

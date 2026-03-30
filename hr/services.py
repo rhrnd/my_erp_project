@@ -124,6 +124,7 @@ def calculate_salary_totals(salary: Salary) -> dict:
         _d(salary.other_deduction)
     )
     net_pay = total_gross - total_deduction
+    tax_free_exclusion = total_gross - _d(salary.meal_pay) - _d(salary.car_allowance)
     total_labor_cost = total_gross + (
         _d(salary.health_ins_comp) + _d(salary.pension_comp) +
         _d(salary.emp_ins_comp) + _d(salary.ind_acc_comp)
@@ -133,6 +134,7 @@ def calculate_salary_totals(salary: Salary) -> dict:
         'total_gross_amt': total_gross,
         'total_deduction_amt': total_deduction,
         'net_pay_amt': net_pay,
+        'tax_free_exclusion': tax_free_exclusion,
         'total_labor_cost': total_labor_cost,
     }
 
