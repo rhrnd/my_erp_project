@@ -162,6 +162,8 @@ class Salary(models.Model):
                                             null=True, blank=True, default=0, verbose_name="노인장기요양보험")
     other_deduction = models.DecimalField(max_digits=15, decimal_places=0, null=True,
                                           blank=True, default=0, verbose_name="기타공제")
+    refund_amt = models.DecimalField(max_digits=15, decimal_places=0, null=True,
+                                     blank=True, default=0, verbose_name="환급금")
 
     # --- 회사 부담금 ---
     health_ins_comp = models.DecimalField(max_digits=15, decimal_places=0, null=True,
@@ -203,11 +205,11 @@ class Salary(models.Model):
             (self.hourly_adj_amt or 0) + (self.meal_pay or 0) + (self.car_allowance or 0)
         )
 
-        # 2. 공제 총계 계산 (모든 공제 항목 합산)
+        # 2. 공제 총계 계산 (모든 공제 항목 합산, 환급금은 차감)
         self.total_deduction_amt = (
             (self.income_tax or 0) + (self.local_income_tax or 0) + (self.health_ins or 0) +
             (self.national_pension or 0) + (self.emp_ins or 0) + (self.longterm_care_ins or 0) +
-            (self.other_deduction or 0)
+            (self.other_deduction or 0) + (self.refund_amt or 0)
         )
 
         # 3. 실수령액 계산

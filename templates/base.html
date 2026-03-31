@@ -24,7 +24,7 @@
         background-color: var(--body-bg);
         color: #334155;
         font-size: 16px;
-        /* 전체 기본 글자 크기 상향 */
+        /* 성적서 기본 글자 크기 상향 */
         line-height: 1.6;
       }
 
@@ -137,6 +137,7 @@
                     <div class="mega-col-header">T/A 810</div>
                     <a class="dropdown-item {% if 'ta/810/management' in request.path %}active{% endif %}" href="{% url 'scm:ta810_management' %}">이력관리</a>
                     <a class="dropdown-item {% if 'ta/810/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta810_unsuitable_list' %}">부적합품 목록</a>
+                    <a class="dropdown-item {% if 'ta/810/total' in request.path %}active{% endif %}" href="{% url 'scm:ta810_total' %}">성적서</a>
                   </div>
 
                   <!-- T/A 840 -->
@@ -144,6 +145,7 @@
                     <div class="mega-col-header">T/A 840</div>
                     <a class="dropdown-item {% if 'ta/840/management' in request.path %}active{% endif %}" href="{% url 'scm:ta840_management' %}">이력관리</a>
                     <a class="dropdown-item {% if 'ta/840/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta840_unsuitable_list' %}">부적합품 목록</a>
+                    <a class="dropdown-item {% if 'ta/840/total' in request.path %}active{% endif %}" href="{% url 'scm:ta840_total' %}">성적서</a>
                   </div>
 
                   <!-- T/A 870 -->
@@ -151,6 +153,7 @@
                     <div class="mega-col-header">T/A 870</div>
                     <a class="dropdown-item {% if 'ta/870/management' in request.path %}active{% endif %}" href="{% url 'scm:ta870_management' %}">이력관리</a>
                     <a class="dropdown-item {% if 'ta/870/unsuitable' in request.path %}active{% endif %}" href="{% url 'scm:ta870_unsuitable_list' %}">부적합품 목록</a>
+                    <a class="dropdown-item {% if 'ta/870/total' in request.path %}active{% endif %}" href="{% url 'scm:ta870_total' %}">성적서</a>
                   </div>
 
                 </div>

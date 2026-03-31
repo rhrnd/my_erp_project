@@ -104,14 +104,24 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">업&nbsp;무&nbsp;기&nbsp;능&nbsp;수&nbsp;당</td>
                     <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|intcomma }}</td>
+                    {% if salary.other_deduction %}
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">기&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;타</td>
+                    <td class="amount-cell">{{ salary.other_deduction|floatformat:0|intcomma }}</td>
+                    {% else %}
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
+                    {% endif %}
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">통&nbsp;&nbsp;신&nbsp;&nbsp;보&nbsp;&nbsp;조&nbsp;&nbsp;비</td>
                     <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|intcomma }}</td>
+                    {% if salary.refund_amt %}
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">환&nbsp;&nbsp;&nbsp;&nbsp;급&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+                    <td class="amount-cell">{{ salary.refund_amt|floatformat:0|intcomma }}</td>
+                    {% else %}
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
+                    {% endif %}
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc; padding:1px;">특&nbsp;&nbsp;&nbsp;&nbsp;별&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>
@@ -252,14 +262,24 @@ body { font-family:'Nanum Gothic','Malgun Gothic','맑은 고딕',sans-serif; ba
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">업&nbsp;무&nbsp;기&nbsp;능&nbsp;수&nbsp;당</td>
                     <td class="amount-cell" style="border-right:4px double #111;">{{ salary.func_allowance|floatformat:0|intcomma }}</td>
+                    {% if salary.other_deduction %}
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">기&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;타</td>
+                    <td class="amount-cell">{{ salary.other_deduction|floatformat:0|intcomma }}</td>
+                    {% else %}
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
+                    {% endif %}
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">통&nbsp;&nbsp;신&nbsp;&nbsp;보&nbsp;&nbsp;조&nbsp;&nbsp;비</td>
                     <td class="amount-cell" style="border-right:4px double #111;">{{ salary.comm_allowance|floatformat:0|intcomma }}</td>
+                    {% if salary.refund_amt %}
+                    <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">환&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;급&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;금</td>
+                    <td class="amount-cell">{{ salary.refund_amt|floatformat:0|intcomma }}</td>
+                    {% else %}
                     <td class="item-label empty" style="border-bottom:1px solid #111; border-right:1px solid #ccc;"></td>
                     <td class="amount-cell empty"></td>
+                    {% endif %}
                 </tr>
                 <tr>
                     <td class="item-label" style="border-bottom:1px solid #111; border-right:1px solid #ccc;">특&nbsp;&nbsp;&nbsp;&nbsp;별&nbsp;&nbsp;&nbsp;&nbsp;수&nbsp;&nbsp;&nbsp;&nbsp;당</td>

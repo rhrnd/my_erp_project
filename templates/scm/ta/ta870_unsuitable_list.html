@@ -11,7 +11,7 @@
 </style>
 
 <div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
-    <h2 class="fw-bold">T/A 840 수입검사 부적합품 목록</h2>
+    <h2 class="h3 mb-0 text-gray-800 fw-bold">T/A 870 수입검사 부적합품 목록</h2>
     <button class="btn btn-primary shadow-sm">+ 등록</button>
 </div>
 
@@ -43,16 +43,25 @@
     <div class="col-12">
         <div class="card p-0 shadow">
             <div class="table-responsive">
-                <table class="table table-hover table-bordered align-middle mb-0 text-center">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center" style="table-layout: fixed; width: 100%; min-width: 700px;">
+                    <colgroup>
+                        <col style="width: 5%;">   <!-- No -->
+                        <col style="width: 12%;">  <!-- 모델 -->
+                        <col style="width: 10%;">  <!-- 입고일 -->
+                        <col style="width: 13%;">  <!-- LOT_NO -->
+                        <col style="width: 8%;">   <!-- (빈칸) -->
+                        <col style="width: 32%;">  <!-- 부적합내용 -->
+                        <col style="width: 20%;">  <!-- 비고 -->
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th class="text-nowrap-cell" style="width: 60px;">No</th>
-                            <th class="text-nowrap-cell" style="width: 120px;">모델</th>
-                            <th class="text-nowrap-cell" style="width: 110px;">입고일</th>
-                            <th class="text-nowrap-cell" style="width: 130px;">LOT_NO</th>
-                            <th style="width: 80px;"></th>
-                            <th style="min-width: 200px;">부적합내용</th>
-                            <th style="min-width: 150px;">비고</th>
+                            <th class="text-nowrap-cell">No</th>
+                            <th class="text-nowrap-cell">모델</th>
+                            <th class="text-nowrap-cell">입고일</th>
+                            <th class="text-nowrap-cell">LOT_NO</th>
+                            <th></th>
+                            <th>부적합내용</th>
+                            <th>비고</th>
                         </tr>
                     </thead>
                     <tbody id="listTableBody">
@@ -70,7 +79,13 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="7" class="py-4 text-muted">등록된 목록이 없습니다.</td>
+                                <td>1</td><td>모델-A</td><td>2025-03-01</td><td>LOT-A001</td><td></td><td class="text-start">도금 불량 — 표면 산화 발생</td><td class="text-start">공급사 통보 완료</td>
+                            </tr>
+                            <tr>
+                                <td>2</td><td>모델-B</td><td>2025-03-10</td><td>LOT-B045</td><td></td><td class="text-start">치수 초과 — 허용 공차 ±0.05 초과</td><td class="text-start">재작업 후 재검사 예정</td>
+                            </tr>
+                            <tr>
+                                <td>3</td><td>모델-A</td><td>2025-03-18</td><td>LOT-C123</td><td></td><td class="text-start">외관 스크래치 — 3개소 확인</td><td class="text-start">-</td>
                             </tr>
                         {% endif %}
                     </tbody>

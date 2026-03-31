@@ -59,6 +59,15 @@
         box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6 !important;
         min-width: 70px;
     }
+    /* 제외 체크박스 열 — 기본 숨김, 표시 시 sticky 적용 */
+    .exclude-col {
+        position: sticky;
+        z-index: 10;
+        left: 0;
+        width: 35px; min-width: 35px; max-width: 35px;
+        background-color: #fff8e1 !important;
+        box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6 !important;
+    }
     /* 0열: 체크박스 */
     .sticky-col-0 {
         left: 0;
@@ -86,9 +95,6 @@
         left: 0;
         z-index: 15;
         background-color: #f8f9fa !important;
-        width: 245px;
-        min-width: 245px;
-        max-width: 245px;
         box-shadow: inset -2px 0 0 #adb5bd, inset 0 -1px 0 #dee2e6 !important;
         text-align: center;
     }
@@ -103,7 +109,7 @@
 </style>
 
 <div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
-    <h2 class="fw-bold"><i class="fas fa-money-check-alt me-2"></i>{{ selected_year }}년 {{ selected_month }}월 급여 관리</h2>
+    <h2 class="h3 mb-0 text-gray-800 fw-bold"><i class="fas fa-money-check-alt me-2"></i>{{ selected_year }}년 {{ selected_month }}월 급여 관리</h2>
     <form method="get" class="d-flex align-items-center gap-2">
         {{ form.year }}
         {{ form.month }}
@@ -145,9 +151,9 @@
                     <col style="width: 70px;"><col style="width: 70px;">
                     <!-- 급여계 1열 -->
                     <col style="width: 80px;">
-                    <!-- 공제내역 7열 -->
+                    <!-- 공제내역 8열 -->
                     <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
-                    <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
+                    <col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;"><col style="width: 70px;">
                     <!-- 공제계, 실수령액, 비과세제외 -->
                     <col style="width: 80px;"><col style="width: 80px;"><col style="width: 80px;">
                 </colgroup>
@@ -162,7 +168,7 @@
                         <th colspan="8">수 당</th>
                         <th colspan="2">비과세 내역</th>
                         <th rowspan="2" class="bg-orange-200">급여 계</th>
-                        <th colspan="7">공 제 내 역</th>
+                        <th colspan="8">공 제 내 역</th>
                         <th rowspan="2" class="bg-orange-200">공제 계</th>
                         <th rowspan="2" class="bg-yellow-400">실수령액</th>
                         <th rowspan="2" class="bg-yellow-400 small">비과세 제외<br>과세급여(신고)</th>
@@ -192,6 +198,7 @@
                         <th>고용보험</th>
                         <th class="text-nowrap">노인장기<br>요양보험</th>
                         <th>기타</th>
+                        <th>환급금</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -245,7 +252,8 @@
                         <td class="text-end editable-cell" data-id="{{ salary.pk }}" data-field="emp_ins" data-value="{{ salary.emp_ins }}">{{ salary.emp_ins|intcomma }}</td>
                         <td class="text-end editable-cell" data-id="{{ salary.pk }}" data-field="longterm_care_ins" data-value="{{ salary.longterm_care_ins }}">{{ salary.longterm_care_ins|intcomma }}</td>
                         <td class="text-end editable-cell" data-id="{{ salary.pk }}" data-field="other_deduction" data-value="{{ salary.other_deduction }}">{{ salary.other_deduction|intcomma }}</td>
-                        
+                        <td class="text-end editable-cell" data-id="{{ salary.pk }}" data-field="refund_amt" data-value="{{ salary.refund_amt }}">{{ salary.refund_amt|intcomma }}</td>
+
                         <!-- 결과 -->
                         <td class="text-end fw-bold bg-orange-200 bg-opacity-25" data-field="total_deduction_amt">{{ salary.total_deduction_amt|intcomma }}</td>
                         <td class="text-end fw-bold bg-yellow-400 bg-opacity-25" data-field="net_pay_amt">{{ salary.net_pay_amt|intcomma }}</td>
@@ -253,7 +261,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="28" class="py-5 text-muted">조회된 급여 데이터가 없습니다.</td>
+                        <td colspan="29" class="py-5 text-muted">조회된 급여 데이터가 없습니다.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -291,7 +299,8 @@
                         <td class="text-end" data-total-field="emp_ins">{{ totals.emp_ins|intcomma }}</td>
                         <td class="text-end" data-total-field="longterm_care_ins">{{ totals.longterm_care_ins|intcomma }}</td>
                         <td class="text-end" data-total-field="other_deduction">{{ totals.other_deduction|intcomma }}</td>
-                        
+                        <td class="text-end" data-total-field="refund_amt">{{ totals.refund_amt|intcomma }}</td>
+
                         <!-- 결과 합계 -->
                         <td class="text-end bg-opacity-50" data-total-field="total_deduction_amt">{{ totals.total_deduction_amt|intcomma }}</td>
                         <td class="text-end bg-opacity-50" data-total-field="net_pay_amt">{{ totals.net_pay_amt|intcomma }}</td>
@@ -370,11 +379,28 @@ function loadExcludeState() {
     });
 }
 
+const EXCLUDE_COL_WIDTH = 35;
+const STICKY_OFFSETS = { 0: 0, 1: 35, 2: 115, 3: 185 };
+
+function applyExcludeStickyShift(active) {
+    const shift = active ? EXCLUDE_COL_WIDTH : 0;
+    [0, 1, 2, 3].forEach(i => {
+        document.querySelectorAll(`.sticky-col-${i}`).forEach(el => {
+            el.style.left = (STICKY_OFFSETS[i] + shift) + 'px';
+        });
+    });
+    // tfoot 합계 셀: 제외 열 포함 시 colspan 5로 확장, 아니면 4로 복원
+    document.querySelectorAll('.sticky-sum').forEach(el => {
+        el.colSpan = active ? 5 : 4;
+    });
+}
+
 function toggleExclude() {
     excludeMode = !excludeMode;
     document.querySelectorAll('.exclude-col').forEach(el => {
         el.style.display = excludeMode ? '' : 'none';
     });
+    applyExcludeStickyShift(excludeMode);
     const btn = document.getElementById('excludeToggleBtn');
     btn.classList.toggle('btn-outline-warning', !excludeMode);
     btn.classList.toggle('btn-warning', excludeMode);
@@ -395,6 +421,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (saved.length > 0) {
         excludeMode = true;
         document.querySelectorAll('.exclude-col').forEach(el => el.style.display = '');
+        applyExcludeStickyShift(true);
         const btn = document.getElementById('excludeToggleBtn');
         if (btn) {
             btn.classList.replace('btn-outline-warning', 'btn-warning');

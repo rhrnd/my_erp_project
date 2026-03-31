@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .table-bordered th, .table-bordered td { border: 1px solid #e2e8f0 !important; }
+    .text-nowrap-cell { white-space: nowrap; }
+    thead th { background-color: #f1f5f9; }
+</style>
+
+<div class="pt-4 pb-2 mb-4">
+    <h2 class="h3 mb-0 text-gray-800 fw-bold">T/A 840 성적서</h2>
+</div>
+
+<!-- 검색 영역 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card p-3 border-0 shadow-sm bg-light">
+            <form class="row g-2 align-items-center" onsubmit="return false;">
+                <div class="col-auto">
+                    <select class="form-select" id="searchYear"><option value="">연도</option></select>
+                </div>
+                <div class="col-auto">
+                    <select class="form-select" id="searchMonth"><option value="">월</option></select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="searchLot" placeholder="LOT 기번 검색...">
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary" onclick="filterRows()">검색</button>
+                    <button type="button" class="btn btn-outline-secondary ms-1" onclick="resetFilter()">초기화</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 테이블 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card p-0 shadow">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center" style="table-layout: fixed; width: 100%; min-width: 750px;">
+                    <colgroup>
+                        <col style="width: 6%;">   <!-- NO -->
+                        <col style="width: 18%;">  <!-- LOT 기번 -->
+                        <col style="width: 13%;">  <!-- 측정1 -->
+                        <col style="width: 13%;">  <!-- 측정2 -->
+                        <col style="width: 13%;">  <!-- 측정3 -->
+                        <col style="width: 13%;">  <!-- 측정4 -->
+                        <col style="width: 13%;">  <!-- 평균 -->
+                        <col style="width: 11%;">  <!-- 비고 -->
+                    </colgroup>
+                    <thead class="table-light">
+                        <tr>
+                            <th>NO</th>
+                            <th>LOT 기번</th>
+                            <th>측정1</th>
+                            <th>측정2</th>
+                            <th>측정3</th>
+                            <th>측정4</th>
+                            <th>평균</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="totalTableBody">
+                        <tr>
+                            <td>1</td><td>LOT-A001</td><td>12.03</td><td>11.98</td><td>12.01</td><td>12.05</td><td>12.02</td><td class="text-start">합격</td>
+                        </tr>
+                        <tr>
+                            <td>2</td><td>LOT-B045</td><td>11.95</td><td>12.10</td><td>11.99</td><td>12.00</td><td>12.01</td><td class="text-start">합격</td>
+                        </tr>
+                        <tr>
+                            <td>3</td><td>LOT-C123</td><td>12.20</td><td>12.18</td><td>12.22</td><td>12.19</td><td>12.20</td><td class="text-start">재검사</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const now = new Date();
+    const yearSel = document.getElementById('searchYear');
+    const monthSel = document.getElementById('searchMonth');
+    for (let y = now.getFullYear() - 2; y <= now.getFullYear() + 1; y++) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y + '년';
+        if (y === now.getFullYear()) opt.selected = true;
+        yearSel.appendChild(opt);
+    }
+    for (let m = 1; m <= 12; m++) {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m + '월';
+        monthSel.appendChild(opt);
+    }
+})();
+
+function filterRows() {
+    const lot = document.getElementById('searchLot').value.toLowerCase();
+    document.querySelectorAll('#totalTableBody tr').forEach(row => {
+        row.style.display = !lot || row.textContent.toLowerCase().includes(lot) ? '' : 'none';
+    });
+}
+function resetFilter() {
+    document.getElementById('searchLot').value = '';
+    document.getElementById('searchYear').value = new Date().getFullYear();
+    document.getElementById('searchMonth').value = '';
+    document.querySelectorAll('#totalTableBody tr').forEach(row => row.style.display = '');
+}
+document.getElementById('searchLot').addEventListener('keydown', e => { if (e.key === 'Enter') filterRows(); });
+</script>
+{% endblock %}

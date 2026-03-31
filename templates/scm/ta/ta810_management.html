@@ -19,7 +19,7 @@
 </style>
 
 <div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
-    <h2 class="fw-bold">T/A 840 이력관리</h2>
+    <h2 class="h3 mb-0 text-gray-800 fw-bold">T/A 810 이력관리</h2>
     <button class="btn btn-primary shadow-sm">+ 등록</button>
 </div>
 
@@ -51,21 +51,37 @@
     <div class="col-12">
         <div class="card p-0 shadow">
             <div class="table-responsive">
-                <table class="table table-hover table-bordered align-middle mb-0 text-center">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center" style="table-layout: fixed; width: 100%; min-width: 1000px;">
+                    <colgroup>
+                        <col style="width: 8%;">   <!-- 입고일 -->
+                        <col style="width: 8%;">   <!-- 입고수량 -->
+                        <col style="width: 8%;">  <!-- LOT_NO -->
+                        <col style="width: 5%;">   <!-- 수량 -->
+                        <col style="width: 5%;">   <!-- 수입불량 -->
+                        <col style="width: 5%;">   <!-- 불량 -->
+                        <col style="width: 5%;">   <!-- 재작업 -->
+                        <col style="width: 5%;">   <!-- 대기 -->
+                        <col style="width: 10%;">   <!-- 수입검사불량 -->
+                        <col style="width: 6%;">   <!-- 수입검사불량비고 -->
+                        <col style="width: 10%;">   <!-- 공정불량 -->
+                        <col style="width: 10%;">   <!-- 대기 -->
+                        <col style="width: 10%;">  <!-- 비고 -->
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th class="text-nowrap-cell" style="width: 110px;">입고일</th>
-                            <th class="text-nowrap-cell" style="width: 90px;">입고수량</th>
-                            <th class="text-nowrap-cell" style="width: 130px;">LOT_NO</th>
-                            <th class="text-nowrap-cell" style="width: 80px;">수량</th>
-                            <th class="text-nowrap-cell" style="width: 100px;">수입불량</th>
-                            <th class="text-nowrap-cell" style="width: 80px;">불량</th>
-                            <th class="text-nowrap-cell" style="width: 80px;">재작업</th>
-                            <th class="text-nowrap-cell" style="width: 80px;">대기</th>
-                            <th class="text-nowrap-cell" style="width: 110px;">수입검사불량</th>
-                            <th class="text-nowrap-cell" style="width: 100px;">공정불량</th>
-                            <th class="text-nowrap-cell" style="width: 80px;">대기</th>
-                            <th style="min-width: 150px;">비고</th>
+                            <th class="text-nowrap-cell">입고일</th>
+                            <th class="text-nowrap-cell">입고수량</th>
+                            <th class="text-nowrap-cell">LOT_NO</th>
+                            <th class="text-nowrap-cell">수량</th>
+                            <th class="text-nowrap-cell">수입불량</th>
+                            <th class="text-nowrap-cell">불량</th>
+                            <th class="text-nowrap-cell">재작업</th>
+                            <th class="text-nowrap-cell">대기</th>
+                            <th class="text-nowrap-cell">수입검사불량</th>
+                            <th class="text-nowrap-cell"></th>
+                            <th class="text-nowrap-cell">공정불량</th>
+                            <th class="text-nowrap-cell">대기</th>
+                            <th>비고</th>
                         </tr>
                     </thead>
                     <tbody id="taTableBody">
@@ -86,7 +102,13 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="12" class="py-4 text-muted">등록된 이력이 없습니다.</td>
+                                <td>2024-09-11</td><td>240</td><td>K40726-01</td><td>60</td><td>2</td><td>1</td><td>0</td><td>1</td><td>외관불량</td><td>-</td><td>-</td><td>0</td><td class="text-start">1차 검사 통과</td>
+                            </tr>
+                            <tr>
+                                <td>2025-03-08</td><td>180</td><td>LOT-B045</td><td>45</td><td>0</td><td>3</td><td>1</td><td>0</td><td>-</td><td>치수불량</td><td>1</td><td class="text-start">재검사 대기 중</td>
+                            </tr>
+                            <tr>
+                                <td>2025-03-15</td><td>300</td><td>LOT-C123</td><td>75</td><td>5</td><td>0</td><td>2</td><td>0</td><td>스크래치</td><td>-</td><td>0</td><td class="text-start">이상없음</td>
                             </tr>
                         {% endif %}
                     </tbody>

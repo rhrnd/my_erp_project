@@ -16,7 +16,7 @@ ALLOWED_SALARY_FIELDS = {
     'ot_pay', 'non_smoke_allowance', 'func_allowance',
     'comm_allowance', 'special_allowance', 'hourly_adj_amt', 'meal_pay',
     'car_allowance', 'income_tax', 'local_income_tax', 'health_ins',
-    'national_pension', 'emp_ins', 'longterm_care_ins', 'other_deduction',
+    'national_pension', 'emp_ins', 'longterm_care_ins', 'other_deduction', 'refund_amt',
     'health_ins_comp', 'pension_comp', 'emp_ins_comp', 'ind_acc_comp',
     'tax_free_exclusion', 'remark',
 }
@@ -87,6 +87,7 @@ def get_salary_totals(target_month: str, company: str = None) -> dict:
         emp_ins=Sum('emp_ins'),
         longterm_care_ins=Sum('longterm_care_ins'),
         other_deduction=Sum('other_deduction'),
+        refund_amt=Sum('refund_amt'),
         total_gross_amt=Sum('total_gross_amt'),
         total_deduction_amt=Sum('total_deduction_amt'),
         net_pay_amt=Sum('net_pay_amt'),
@@ -121,7 +122,7 @@ def calculate_salary_totals(salary: Salary) -> dict:
     total_deduction = (
         _d(salary.income_tax) + _d(salary.local_income_tax) + _d(salary.health_ins) +
         _d(salary.national_pension) + _d(salary.emp_ins) + _d(salary.longterm_care_ins) +
-        _d(salary.other_deduction)
+        _d(salary.other_deduction) + _d(salary.refund_amt)
     )
     net_pay = total_gross - total_deduction
     tax_free_exclusion = total_gross - _d(salary.meal_pay) - _d(salary.car_allowance)
