@@ -4,6 +4,7 @@
 <style>
     .table-bordered th, .table-bordered td {
         border: 1px solid #e2e8f0 !important;
+        padding: 6px 13px;
     }
     .text-nowrap-cell {
         white-space: nowrap;
@@ -14,7 +15,7 @@
     thead tr:last-child th {
         background-color: #f8fafc;
         font-weight: 500;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
 </style>
 
@@ -51,21 +52,22 @@
     <div class="col-12">
         <div class="card p-0 shadow">
             <div class="table-responsive">
-                <table class="table table-hover table-bordered align-middle mb-0 text-center" style="table-layout: fixed; width: 100%; min-width: 1000px;">
+                <table class="table table-hover table-bordered align-middle mb-0 text-center" 
+                style="table-layout: fixed; width: 100%; min-width: 1200px;">
                     <colgroup>
-                        <col style="width: 8%;">   <!-- 입고일 -->
-                        <col style="width: 8%;">   <!-- 입고수량 -->
-                        <col style="width: 8%;">  <!-- LOT_NO -->
-                        <col style="width: 5%;">   <!-- 수량 -->
-                        <col style="width: 5%;">   <!-- 수입불량 -->
-                        <col style="width: 5%;">   <!-- 불량 -->
-                        <col style="width: 5%;">   <!-- 재작업 -->
-                        <col style="width: 5%;">   <!-- 대기 -->
-                        <col style="width: 10%;">   <!-- 수입검사불량 -->
-                        <col style="width: 6%;">   <!-- 수입검사불량비고 -->
-                        <col style="width: 10%;">   <!-- 공정불량 -->
-                        <col style="width: 10%;">   <!-- 대기 -->
-                        <col style="width: 10%;">  <!-- 비고 -->
+                        <col style="width: 75px;">   <!-- 입고일 -->
+                        <col style="width: 95px;">   <!-- 입고수량 -->
+                        <col style="width: 70px;">  <!-- LOT_NO -->
+                        <col style="width: 60px;">   <!-- 수량 -->
+                        <col style="width: 60px;">   <!-- 수입불량 -->
+                        <col style="width: 60px;">   <!-- 불량 -->
+                        <col style="width: 60px;">   <!-- 재작업 -->
+                        <col style="width: 60px;">   <!-- 대기 -->
+                        <col style="width: 120px;">   <!-- 수입검사불량 -->
+                        <col style="width: 72px;">   <!-- 수입검사불량 비고 -->
+                        <col style="width: 120px;">   <!-- 공정불량 -->
+                        <col style="width: 120px;">   <!-- 대기 -->
+                        <col style="width: 120px;">  <!-- 비고 -->
                     </colgroup>
                     <thead class="table-light">
                         <tr>
@@ -105,7 +107,7 @@
                                 <td>2024-09-11</td><td>240</td><td>K40726-01</td><td>60</td><td>2</td><td>1</td><td>0</td><td>1</td><td>외관불량</td><td>-</td><td>-</td><td>0</td><td class="text-start">1차 검사 통과</td>
                             </tr>
                             <tr>
-                                <td>2025-03-08</td><td>180</td><td>LOT-B045</td><td>45</td><td>0</td><td>3</td><td>1</td><td>0</td><td>-</td><td>치수불량</td><td>1</td><td class="text-start">재검사 대기 중</td>
+                                <td>2025-09-11</td><td>180</td><td>LOT-B045</td><td>45</td><td>0</td><td>3</td><td>1</td><td>0</td><td>-</td><td>치수불량</td><td>1</td><td class="text-start">재검사 대기 중</td>
                             </tr>
                             <tr>
                                 <td>2025-03-15</td><td>300</td><td>LOT-C123</td><td>75</td><td>5</td><td>0</td><td>2</td><td>0</td><td>스크래치</td><td>-</td><td>0</td><td class="text-start">이상없음</td>
