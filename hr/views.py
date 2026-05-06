@@ -33,6 +33,44 @@ def _null(val):
     return val if val not in ('', None) else None
 
 
+def _parse_decimal(value, field_name, *, min_value=None):
+    try:
+        parsed = Decimal(str(value))
+    except (ValueError, TypeError, InvalidOperation):
+        raise ValueError(f'{field_name}은(는) 숫자로 입력해주세요.')
+
+    if not parsed.is_finite():
+        raise ValueError(f'{field_name}은(는) 올바른 숫자로 입력해주세요.')
+
+    if min_value is not None and parsed < Decimal(str(min_value)):
+        raise ValueError(f'{field_name}은(는) {min_value} 이상이어야 합니다.')
+
+    return parsed
+
+
+def _period_from_form(form, default_year, default_month=None):
+    if form.is_valid():
+        selected_year = int(form.cleaned_data['year'])
+        selected_month = int(form.cleaned_data['month']) if default_month is not None and 'month' in form.cleaned_data else None
+    else:
+        selected_year = default_year
+        selected_month = default_month
+
+    if selected_month is None:
+        return selected_year
+
+    return selected_year, selected_month
+
+
+def _is_valid_work_date(year, month, day):
+    try:
+        calendar.monthrange(year, month)
+        date(year, month, day)
+    except ValueError:
+        return False
+    return True
+
+
 @login_required
 def hr_list(request):
     # 실시간 검색(JS)을 사용하므로 서버에서는 전체 목록을 반환합니다.
@@ -268,16 +306,11 @@ def salary_list(request):
     """급여 관리 페이지"""
     # 1. 폼 초기화: GET 데이터가 있으면 바인딩, 없으면 기본값(None)
     # 초기값이 현재 연월로 설정된 폼을 생성합니다.
+    now = datetime.now()
     form = SalarySearchForm(request.GET or None)
 
-    # 기본값 설정 (현재 시점)
-    selected_year = datetime.now().year
-    selected_month = datetime.now().month
-
-    # 2. 폼 유효성 검사: 사용자가 조회를 눌렀을 때 선택한 연월 반영
-    if form.is_valid():
-        selected_year = int(form.cleaned_data['year'])
-        selected_month = int(form.cleaned_data['month'])
+    # 2. 폼 유효성 검사: 비정상 GET 값은 현재 연월로 되돌립니다.
+    selected_year, selected_month = _period_from_form(form, now.year, now.month)
 
     # 3. 급여 데이터 조회
     # DB에는 'YYYY-MM' 문자열 형태로 저장되어 있으므로 포맷팅
@@ -377,17 +410,14 @@ def salary_update(request):
         # remark는 텍스트 필드로 별도 처리
         if field == 'remark':
             salary = Salary.objects.select_related('emp').get(pk=salary_id)
-            salary.remark = str(value)
+            salary.remark = str(value or '').strip()
             salary.save(update_fields=['remark'])
             return JsonResponse({'status': 'success'})
 
         if field not in services.ALLOWED_SALARY_FIELDS:
             return JsonResponse({'status': 'error', 'message': '수정 불가능한 필드입니다.'}, status=400)
 
-        try:
-            value = Decimal(str(value))
-        except (ValueError, TypeError, InvalidOperation):
-            value = Decimal('0')
+        value = _parse_decimal(value, '급여 항목')
 
         salary = Salary.objects.select_related('emp').get(pk=salary_id)
         setattr(salary, field, value)
@@ -424,6 +454,8 @@ def salary_update(request):
         })
     except Salary.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': '데이터를 찾을 수 없습니다.'}, status=404)
+    except ValueError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
@@ -434,18 +466,15 @@ def attendance_list(request):
 
     # 1. 연/월 선택 값 가져오기
     searched = 'year' in request.GET or 'month' in request.GET
-    try:
-        selected_year = int(request.GET.get('year', now.year))
-        selected_month = int(request.GET.get('month', now.month))
-    except ValueError:
-        selected_year = now.year
-        selected_month = now.month
+    form = SalarySearchForm(request.GET or None)
+    selected_year, selected_month = _period_from_form(form, now.year, now.month)
 
     # 2. 폼 객체 생성 (사용자 선택값 유지)
-    form = SalarySearchForm(initial={
-        'year': selected_year,
-        'month': selected_month
-    })
+    if not request.GET:
+        form = SalarySearchForm(initial={
+            'year': selected_year,
+            'month': selected_month
+        })
 
     # 3. 날짜 범위 계산
     last_day = calendar.monthrange(selected_year, selected_month)[1]
@@ -593,6 +622,9 @@ def attendance_list(request):
 # 1. 클릭 시 칸 자체가 입력창으로 변함
 @login_required
 def edit_attendance_cell(request, emp_id, year, month, day, work_type):
+    if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
+        return HttpResponse('잘못된 근태 요청입니다.', status=400)
+
     try:
         date_str = f"{year}-{int(month):02d}-{int(day):02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
@@ -635,6 +667,9 @@ def edit_attendance_cell(request, emp_id, year, month, day, work_type):
 
 @login_required
 def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
+    if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
+        return HttpResponse('잘못된 근태 요청입니다.', status=400)
+
     try:
         date_str = f"{year}-{month:02d}-{day:02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
@@ -675,6 +710,9 @@ def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
 @login_required
 @require_POST
 def save_attendance_cell(request, emp_id, year, month, day, work_type):
+    if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
+        return JsonResponse({'status': 'error', 'message': '잘못된 근태 요청입니다.'}, status=400)
+
     try:
         user_input = request.POST.get('value', '').strip()
 
@@ -691,6 +729,12 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
             is_num = True
         except (InvalidOperation, ValueError):
             is_num = False
+
+        if work_type in {'normal', 'ot', 'weekend'}:
+            if not is_num:
+                return JsonResponse({'status': 'error', 'message': '근무시간은 숫자로 입력해주세요.'}, status=400)
+            if not num_val.is_finite() or num_val < 0:
+                return JsonResponse({'status': 'error', 'message': '근무시간은 0 이상 숫자로 입력해주세요.'}, status=400)
 
         # 필드 매칭 로직
         if work_type == 'status':
@@ -830,7 +874,7 @@ def save_attendance_remark(request, emp_id, year, month):
 @login_required
 def pto_list(request):
     form = PtoSearchForm(request.GET or None)
-    selected_year = int(request.GET.get('year', datetime.today().year))
+    selected_year = _period_from_form(form, datetime.today().year)
 
     employees = (
         Employee.objects
@@ -937,11 +981,13 @@ def pto_update(request):
         new_total = data.get('total_days')
 
         leave = AnnualLeave.objects.get(pk=leave_id)
-        leave.total_days = Decimal(str(new_total))
+        leave.total_days = _parse_decimal(new_total, '사용가능한 연차', min_value=0)
         leave.save()
         return JsonResponse({'status': 'success'})
     except AnnualLeave.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': '존재하지 않는 연차 레코드입니다.'}, status=404)
+    except ValueError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
