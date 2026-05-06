@@ -2,15 +2,16 @@ from datetime import datetime
 
 from django.shortcuts import render
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
 
+from permission.decorators import erp_permission_required
+from permission.services import filter_queryset_by_scope, has_permission
 from .models import SalaryRate
 
 
-@login_required
+@erp_permission_required('tax_salary_rate', 'view')
 def salary_rate_list(request):
     current_year = datetime.now().year
     try:
@@ -18,8 +19,17 @@ def salary_rate_list(request):
     except (ValueError, TypeError):
         selected_year = current_year
 
-    # 선택한 연도가 없으면 기본값으로 자동 생성
-    rate, created = SalaryRate.objects.get_or_create(year=selected_year)
+    can_edit = has_permission(request.user, 'tax_salary_rate', 'edit')
+    try:
+        rate = SalaryRate.objects.get(year=selected_year)
+        created = False
+    except SalaryRate.DoesNotExist:
+        if can_edit:
+            rate = SalaryRate.objects.create(year=selected_year)
+            created = True
+        else:
+            rate = SalaryRate(year=selected_year)
+            created = False
 
     # 드롭다운용 연도 목록: 1998년 ~ 내년까지 전체
     existing = set(SalaryRate.objects.values_list('year', flat=True))
@@ -31,11 +41,12 @@ def salary_rate_list(request):
         'selected_year': selected_year,
         'current_year': current_year,
         'created': created,
+        'can_edit': can_edit,
     })
 
 
 
-@login_required
+@erp_permission_required('tax_salary_rate', 'edit')
 @require_POST
 def salary_rate_update(request):
     try:
@@ -69,7 +80,7 @@ def salary_rate_update(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_salary', 'edit')
 @require_POST
 def salary_auto_calculate(request):
     """해당 월의 급여 레코드에 등록된 요율을 적용해 보험료를 자동 계산 후 저장"""
@@ -96,7 +107,14 @@ def salary_auto_calculate(request):
             return (Decimal(val).quantize(Decimal('1'), rounding=ROUND_HALF_UP) // 10) * 10
 
         exclude_ids = data.get('exclude_ids', [])
-        salaries = Salary.objects.filter(salary_month=salary_month).exclude(pk__in=exclude_ids)
+        salaries = filter_queryset_by_scope(
+            Salary.objects.filter(salary_month=salary_month).select_related('emp__dept'),
+            request.user,
+            'hr_salary',
+            action='edit',
+            employee_field='emp',
+            department_field='emp__dept',
+        ).exclude(pk__in=exclude_ids)
         updated = 0
 
         for salary in salaries:

@@ -8,13 +8,14 @@ import holidays as holidays_lib
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Case, When, Value, FloatField
 from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from audit.models import AuditLog
+from permission.decorators import erp_permission_required
+from permission.services import filter_queryset_by_scope, has_permission
 from .forms import SalarySearchForm, PtoSearchForm
 from django.db.models import F
 from .models import Employee, Department, Salary, AttendanceLog, AnnualLeave, LateRecord, AttendanceRemark
@@ -71,17 +72,59 @@ def _is_valid_work_date(year, month, day):
     return True
 
 
-@login_required
+def _aggregate_salary_totals(queryset):
+    return queryset.aggregate(
+        base_amt=Sum('base_amt'),
+        pos_allowance=Sum('pos_allowance'),
+        exp_allowance=Sum('exp_allowance'),
+        weekly_holiday_pay=Sum('weekly_holiday_pay'),
+        ot_hours=Sum('ot_hours'),
+        ot_pay=Sum('ot_pay'),
+        non_smoke_allowance=Sum('non_smoke_allowance'),
+        func_allowance=Sum('func_allowance'),
+        comm_allowance=Sum('comm_allowance'),
+        special_allowance=Sum('special_allowance'),
+        hourly_adj_amt=Sum('hourly_adj_amt'),
+        meal_pay=Sum('meal_pay'),
+        car_allowance=Sum('car_allowance'),
+        income_tax=Sum('income_tax'),
+        local_income_tax=Sum('local_income_tax'),
+        health_ins=Sum('health_ins'),
+        national_pension=Sum('national_pension'),
+        emp_ins=Sum('emp_ins'),
+        longterm_care_ins=Sum('longterm_care_ins'),
+        other_deduction=Sum('other_deduction'),
+        refund_amt=Sum('refund_amt'),
+        total_gross_amt=Sum('total_gross_amt'),
+        total_deduction_amt=Sum('total_deduction_amt'),
+        net_pay_amt=Sum('net_pay_amt'),
+        tax_free_exclusion=Sum('tax_free_exclusion'),
+    )
+
+
+@erp_permission_required('hr_employee', 'view')
 def hr_list(request):
     # 실시간 검색(JS)을 사용하므로 서버에서는 전체 목록을 반환합니다.
-    employees = Employee.objects.select_related('dept').order_by('emp_hire', 'emp_no')
+    employees = filter_queryset_by_scope(
+        Employee.objects.select_related('dept'),
+        request.user,
+        'hr_employee',
+        employee_field='self',
+        department_field='dept',
+    ).order_by('emp_hire', 'emp_no')
     departments = Department.objects.filter(in_use=True).order_by('dept_nm')
     companies = Department.objects.filter(in_use=True).values_list(
         'dept_comp', flat=True).distinct().order_by('dept_comp')
-    return render(request, 'hr/hr_list.html', {'employees': employees, 'departments': departments, 'companies': companies})
+    return render(request, 'hr/hr_list.html', {
+        'employees': employees,
+        'departments': departments,
+        'companies': companies,
+        'can_create': has_permission(request.user, 'hr_employee', 'create'),
+        'can_edit': has_permission(request.user, 'hr_employee', 'edit'),
+    })
 
 
-@login_required
+@erp_permission_required('hr_employee', 'create')
 @require_POST
 def employee_create(request):
     try:
@@ -125,13 +168,20 @@ def employee_create(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_employee', 'edit')
 @require_POST
 def employee_update_status(request):
     try:
         data = json.loads(request.body)
         # emp_id(PK)가 아닌 emp_no(사번)으로 조회
-        emp = Employee.objects.get(emp_no=data['emp_id'])
+        emp = filter_queryset_by_scope(
+            Employee.objects.all(),
+            request.user,
+            'hr_employee',
+            action='edit',
+            employee_field='self',
+            department_field='dept',
+        ).get(emp_no=data['emp_id'])
         emp.emp_stat = data['status']
         change_reason = data.get('change_reason', '').strip()
         if change_reason:
@@ -154,12 +204,19 @@ def employee_update_status(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_employee', 'edit')
 @require_POST
 def employee_update(request):
     try:
         data = json.loads(request.body)
-        emp = Employee.objects.select_related('dept').get(emp_no=data['emp_id'])
+        emp = filter_queryset_by_scope(
+            Employee.objects.select_related('dept'),
+            request.user,
+            'hr_employee',
+            action='edit',
+            employee_field='self',
+            department_field='dept',
+        ).get(emp_no=data['emp_id'])
 
         # 변경 전 값 캡처
         old = {
@@ -212,7 +269,7 @@ def employee_update(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_department', 'view')
 def department_list(request):
     """부서 관리 페이지"""
     departments = Department.objects.all().order_by('dept_comp', 'dept_nm')
@@ -224,10 +281,12 @@ def department_list(request):
     return render(request, 'hr/department_list.html', {
         'departments': departments,
         'companies': companies,
+        'can_create': has_permission(request.user, 'hr_department', 'create'),
+        'can_edit': has_permission(request.user, 'hr_department', 'edit'),
     })
 
 
-@login_required
+@erp_permission_required('hr_department', 'create')
 @require_POST
 def department_create(request):
     """부서 등록 API"""
@@ -261,7 +320,7 @@ def department_create(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_department', 'edit')
 @require_POST
 def department_update(request):
     """부서 수정 API"""
@@ -301,7 +360,7 @@ def department_update(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_salary', 'view')
 def salary_list(request):
     """급여 관리 페이지"""
     # 1. 폼 초기화: GET 데이터가 있으면 바인딩, 없으면 기본값(None)
@@ -315,22 +374,27 @@ def salary_list(request):
     # 3. 급여 데이터 조회
     # DB에는 'YYYY-MM' 문자열 형태로 저장되어 있으므로 포맷팅
     target_month = f"{selected_year}-{selected_month:02d}"
+    can_edit = has_permission(request.user, 'hr_salary', 'edit')
 
-    # 해당 월에 급여 데이터가 없는 재직 사원이 있다면, 초기 데이터를 생성해줍니다.
-    services.ensure_salary_records(target_month)
+    if can_edit:
+        # 해당 월에 급여 데이터가 없는 재직 사원이 있다면, 초기 데이터를 생성해줍니다.
+        services.ensure_salary_records(target_month)
 
-    # 근태 O/T 합계를 급여 잔업시간에 자동 반영
-    services.sync_ot_from_attendance(target_month, selected_year, selected_month)
+        # 근태 O/T 합계를 급여 잔업시간에 자동 반영
+        services.sync_ot_from_attendance(target_month, selected_year, selected_month)
 
     selected_company = request.GET.get('company', '')
 
-    salaries = list(
-        Salary.objects.filter(salary_month=target_month)
-        .select_related('emp__dept')
-        .order_by('emp__emp_no')
+    salary_qs = filter_queryset_by_scope(
+        Salary.objects.filter(salary_month=target_month).select_related('emp__dept'),
+        request.user,
+        'hr_salary',
+        employee_field='emp',
+        department_field='emp__dept',
     )
     if selected_company:
-        salaries = [s for s in salaries if s.emp.dept.dept_comp == selected_company]
+        salary_qs = salary_qs.filter(emp__dept__dept_comp=selected_company)
+    salaries = list(salary_qs.order_by('emp__emp_no'))
 
     # 지각 사이클 계산 (LateRecord 기반)
     emp_ids = [s.emp_id for s in salaries]
@@ -362,7 +426,7 @@ def salary_list(request):
         s.late_deductions = cumulative // 3
 
     # 4. 합계 계산 (Footer 표시용)
-    totals = services.get_salary_totals(target_month, company=selected_company or None)
+    totals = _aggregate_salary_totals(salary_qs)
 
     # 해당 연도 요율 (자동계산 안내용)
     from tax.models import SalaryRate
@@ -372,12 +436,7 @@ def salary_list(request):
         salary_rate = None
 
     # 5. 권한 체크 (템플릿에서 버튼 노출 제어용)
-    can_export = False
-    if request.user.role:
-        can_export = request.user.role.permissions.filter(
-            menu__code='hr_salary',
-            can_export=True
-        ).exists()
+    can_export = has_permission(request.user, 'hr_salary', 'export')
 
     companies = Department.objects.filter(in_use=True).values_list(
         'dept_comp', flat=True).distinct().order_by('dept_comp')
@@ -388,6 +447,7 @@ def salary_list(request):
         'selected_month': selected_month,
         'salaries': salaries,
         'totals': totals,
+        'can_edit': can_edit,
         'can_export': can_export,
         'companies': companies,
         'selected_company': selected_company,
@@ -397,7 +457,7 @@ def salary_list(request):
     return render(request, 'hr/salary.html', context)
 
 
-@login_required
+@erp_permission_required('hr_salary', 'edit')
 @require_POST
 def salary_update(request):
     """급여 항목 실시간 수정 API"""
@@ -406,10 +466,18 @@ def salary_update(request):
         salary_id = data.get('salary_id')
         field = data.get('field')
         value = data.get('value', 0)
+        selected_company = data.get('company', '')
 
         # remark는 텍스트 필드로 별도 처리
         if field == 'remark':
-            salary = Salary.objects.select_related('emp').get(pk=salary_id)
+            salary = filter_queryset_by_scope(
+                Salary.objects.select_related('emp__dept'),
+                request.user,
+                'hr_salary',
+                action='edit',
+                employee_field='emp',
+                department_field='emp__dept',
+            ).get(pk=salary_id)
             salary.remark = str(value or '').strip()
             salary.save(update_fields=['remark'])
             return JsonResponse({'status': 'success'})
@@ -419,7 +487,14 @@ def salary_update(request):
 
         value = _parse_decimal(value, '급여 항목')
 
-        salary = Salary.objects.select_related('emp').get(pk=salary_id)
+        salary = filter_queryset_by_scope(
+            Salary.objects.select_related('emp__dept'),
+            request.user,
+            'hr_salary',
+            action='edit',
+            employee_field='emp',
+            department_field='emp__dept',
+        ).get(pk=salary_id)
         setattr(salary, field, value)
         salary.save()
 
@@ -441,7 +516,16 @@ def salary_update(request):
             ip_address=request.META.get('REMOTE_ADDR')
         )
 
-        totals = services.get_salary_totals(salary.salary_month)
+        scoped_salary_qs = filter_queryset_by_scope(
+            Salary.objects.filter(salary_month=salary.salary_month),
+            request.user,
+            'hr_salary',
+            employee_field='emp',
+            department_field='emp__dept',
+        )
+        if selected_company:
+            scoped_salary_qs = scoped_salary_qs.filter(emp__dept__dept_comp=selected_company)
+        totals = _aggregate_salary_totals(scoped_salary_qs)
         response_totals = {k: float(v or 0) for k, v in totals.items()}
 
         return JsonResponse({
@@ -460,7 +544,7 @@ def salary_update(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-@login_required
+@erp_permission_required('hr_attendance', 'view')
 def attendance_list(request):
     now = datetime.now()
 
@@ -491,7 +575,13 @@ def attendance_list(request):
     companies = Department.objects.filter(in_use=True).values_list(
         'dept_comp', flat=True).distinct().order_by('dept_comp')
 
-    emp_qs = Employee.objects.filter(emp_stat='재직').select_related('dept').order_by('dept__dept_id', 'emp_no')
+    emp_qs = filter_queryset_by_scope(
+        Employee.objects.filter(emp_stat='재직').select_related('dept'),
+        request.user,
+        'hr_attendance',
+        employee_field='self',
+        department_field='dept',
+    ).order_by('dept__dept_id', 'emp_no')
     if selected_company:
         emp_qs = emp_qs.filter(dept__dept_comp=selected_company)
     employees = list(emp_qs)
@@ -616,16 +706,26 @@ def attendance_list(request):
         'companies': companies,
         'selected_company': selected_company,
         'searched': searched,
+        'can_edit': has_permission(request.user, 'hr_attendance', 'edit'),
+        'can_export': has_permission(request.user, 'hr_attendance', 'export'),
     })
 
 
 # 1. 클릭 시 칸 자체가 입력창으로 변함
-@login_required
+@erp_permission_required('hr_attendance', 'edit')
 def edit_attendance_cell(request, emp_id, year, month, day, work_type):
     if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
         return HttpResponse('잘못된 근태 요청입니다.', status=400)
 
     try:
+        filter_queryset_by_scope(
+            Employee.objects.all(),
+            request.user,
+            'hr_attendance',
+            action='edit',
+            employee_field='self',
+            department_field='dept',
+        ).get(pk=emp_id)
         date_str = f"{year}-{int(month):02d}-{int(day):02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
 
@@ -665,12 +765,19 @@ def edit_attendance_cell(request, emp_id, year, month, day, work_type):
         )
 
 
-@login_required
+@erp_permission_required('hr_attendance', 'view')
 def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
     if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
         return HttpResponse('잘못된 근태 요청입니다.', status=400)
 
     try:
+        filter_queryset_by_scope(
+            Employee.objects.all(),
+            request.user,
+            'hr_attendance',
+            employee_field='self',
+            department_field='dept',
+        ).get(pk=emp_id)
         date_str = f"{year}-{month:02d}-{day:02d}"
         log = AttendanceLog.objects.filter(emp_id=emp_id, work_dt=date_str).first()
 
@@ -707,13 +814,21 @@ def cancel_attendance_cell(request, emp_id, year, month, day, work_type):
 
 
 # 2. 저장 시 숫자/문자 자동 판별 및 합계 업데이트
-@login_required
+@erp_permission_required('hr_attendance', 'edit')
 @require_POST
 def save_attendance_cell(request, emp_id, year, month, day, work_type):
     if work_type not in {'status', 'normal', 'ot', 'weekend'} or not _is_valid_work_date(year, month, day):
         return JsonResponse({'status': 'error', 'message': '잘못된 근태 요청입니다.'}, status=400)
 
     try:
+        filter_queryset_by_scope(
+            Employee.objects.all(),
+            request.user,
+            'hr_attendance',
+            action='edit',
+            employee_field='self',
+            department_field='dept',
+        ).get(pk=emp_id)
         user_input = request.POST.get('value', '').strip()
 
         date_str = f"{year}-{int(month):02d}-{int(day):02d}"
@@ -830,8 +945,16 @@ def save_attendance_cell(request, emp_id, year, month, day, work_type):
 
 # ─── 근태 비고 ────────────────────────────────────────────────────────────────
 
-@login_required
+@erp_permission_required('hr_attendance', 'edit')
 def edit_attendance_remark(request, emp_id, year, month):
+    filter_queryset_by_scope(
+        Employee.objects.all(),
+        request.user,
+        'hr_attendance',
+        action='edit',
+        employee_field='self',
+        department_field='dept',
+    ).get(pk=emp_id)
     obj = AttendanceRemark.objects.filter(emp_id=emp_id, year=year, month=month).first()
     current = obj.remark if obj else ''
     safe_val = html.escape(current)
@@ -847,9 +970,17 @@ def edit_attendance_remark(request, emp_id, year, month):
     ''')
 
 
-@login_required
+@erp_permission_required('hr_attendance', 'edit')
 @require_POST
 def save_attendance_remark(request, emp_id, year, month):
+    filter_queryset_by_scope(
+        Employee.objects.all(),
+        request.user,
+        'hr_attendance',
+        action='edit',
+        employee_field='self',
+        department_field='dept',
+    ).get(pk=emp_id)
     remark = request.POST.get('remark', '').strip()
     obj, _ = AttendanceRemark.objects.get_or_create(
         emp_id=emp_id, year=year, month=month,
@@ -871,15 +1002,20 @@ def save_attendance_remark(request, emp_id, year, month):
 
 # ─── 연차 관리 ────────────────────────────────────────────────────────────────
 
-@login_required
+@erp_permission_required('hr_pto', 'view')
 def pto_list(request):
     form = PtoSearchForm(request.GET or None)
     selected_year = _period_from_form(form, datetime.today().year)
+    can_edit = has_permission(request.user, 'hr_pto', 'edit')
 
     employees = (
-        Employee.objects
-        .filter(emp_stat='재직')
-        .select_related('dept')
+        filter_queryset_by_scope(
+            Employee.objects.filter(emp_stat='재직').select_related('dept'),
+            request.user,
+            'hr_pto',
+            employee_field='self',
+            department_field='dept',
+        )
         .order_by('dept__dept_nm', 'emp_nm')
     )
 
@@ -923,16 +1059,17 @@ def pto_list(request):
     for emp in employees:
         leave = leave_map.get(emp.emp_id)
         if leave is None:
-            leave = AnnualLeave.objects.create(emp=emp, year=selected_year, total_days=0)
-            leave_map[emp.emp_id] = leave
+            if can_edit:
+                leave = AnnualLeave.objects.create(emp=emp, year=selected_year, total_days=0)
+                leave_map[emp.emp_id] = leave
 
-        total_days = leave.total_days
+        total_days = leave.total_days if leave else Decimal('0')
         used_days = Decimal(str(used_map.get(emp.emp_id, 0)))
         remaining_days = total_days - used_days
 
         lr = late_year_map.get(emp.emp_id)
         pto_data.append({
-            'leave_id': leave.pk,
+            'leave_id': leave.pk if leave else '',
             'dept': emp.dept.dept_nm,
             'emp_nm': emp.emp_nm,
             'total_days': total_days,
@@ -947,16 +1084,21 @@ def pto_list(request):
         'pto_data': pto_data,
         'selected_year': selected_year,
         'form': form,
+        'can_edit': can_edit,
     })
 
 
-@login_required
+@erp_permission_required('hr_salary', 'export')
 def print_payslip(request):
-    if not request.user.is_staff:
-        return redirect('/')
-
     ids = [i.strip() for i in request.GET.get('salary_ids', '').split(',') if i.strip()]
-    salaries = Salary.objects.select_related('emp__dept').filter(salary_rec_id__in=ids)
+    salaries = filter_queryset_by_scope(
+        Salary.objects.select_related('emp__dept').filter(salary_rec_id__in=ids),
+        request.user,
+        'hr_salary',
+        action='export',
+        employee_field='emp',
+        department_field='emp__dept',
+    )
 
     salary_map = {str(s.salary_rec_id): s for s in salaries}
     ordered = [salary_map[i] for i in ids if i in salary_map]
@@ -972,7 +1114,7 @@ def print_payslip(request):
     return render(request, 'hr/print_payslip.html', {'pairs': pairs})
 
 
-@login_required
+@erp_permission_required('hr_pto', 'edit')
 @require_POST
 def pto_update(request):
     try:
@@ -980,7 +1122,14 @@ def pto_update(request):
         leave_id = data.get('leave_id')
         new_total = data.get('total_days')
 
-        leave = AnnualLeave.objects.get(pk=leave_id)
+        leave = filter_queryset_by_scope(
+            AnnualLeave.objects.select_related('emp__dept'),
+            request.user,
+            'hr_pto',
+            action='edit',
+            employee_field='emp',
+            department_field='emp__dept',
+        ).get(pk=leave_id)
         leave.total_days = _parse_decimal(new_total, '사용가능한 연차', min_value=0)
         leave.save()
         return JsonResponse({'status': 'success'})
@@ -992,7 +1141,7 @@ def pto_update(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-@login_required
+@erp_permission_required('hr_pto', 'edit')
 @require_POST
 def late_count_update(request):
     try:
@@ -1000,6 +1149,15 @@ def late_count_update(request):
         emp_id = data.get('emp_id')
         year = data.get('year')
         new_count = max(0, int(data.get('count', 0)))
+
+        filter_queryset_by_scope(
+            Employee.objects.all(),
+            request.user,
+            'hr_pto',
+            action='edit',
+            employee_field='self',
+            department_field='dept',
+        ).get(pk=emp_id)
 
         lr, _ = LateRecord.objects.get_or_create(
             emp_id=emp_id, year=year, defaults={'count': 0}

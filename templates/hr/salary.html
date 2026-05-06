@@ -99,12 +99,14 @@
         text-align: center;
     }
     
+    {% if can_edit %}
     .editable-cell {
         cursor: pointer;
     }
     .editable-cell:hover {
         background-color: #f0f9ff !important;
     }
+    {% endif %}
 
 </style>
 
@@ -211,12 +213,12 @@
                             <input type="checkbox" name="salary_id" value="{{ salary.salary_rec_id }}">
                         </td>
                         <td class="sticky-col sticky-col-1">{{ salary.emp.emp_no }}</td>
-                        <td class="fw-bold sticky-col sticky-col-2" style="cursor:pointer;"
+                        <td class="fw-bold sticky-col sticky-col-2" {% if can_edit %}style="cursor:pointer;"{% endif %}
                             data-salary-id="{{ salary.pk }}"
                             data-emp-nm="{{ salary.emp.emp_nm }}"
                             data-salary-month="{{ salary.salary_month }}"
                             data-remark="{{ salary.remark|default:'' }}"
-                            onclick="openRemarkModal(this)">
+                            {% if can_edit %}onclick="openRemarkModal(this)"{% endif %}>
                             {{ salary.emp.emp_nm }}
                             {% if salary.remark %}<i class="fas fa-sticky-note text-warning ms-1" style="font-size:10px;"></i>{% endif %}
                         </td>
@@ -322,12 +324,14 @@
             <i class="fas fa-info-circle me-1"></i>{{ selected_year }}년 요율 적용 중
             (건보 {{ salary_rate.health_ins_rate }}% / 연금 {{ salary_rate.pension_rate }}% / 고용 {{ salary_rate.emp_ins_rate }}%)
         </span>
+        {% if can_edit %}
         <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="autoCalculate()">
             <i class="fas fa-calculator me-1"></i> 보험료 자동 계산
         </button>
         <button class="btn btn-outline-warning btn-sm shadow-sm" id="excludeToggleBtn" onclick="toggleExclude()">
             <i class="fas fa-user-slash me-1"></i> 제외
         </button>
+        {% endif %}
         {% else %}
         <span class="text-danger" style="font-size:12px;">
             <i class="fas fa-exclamation-triangle me-1"></i>{{ selected_year }}년 요율 미등록
@@ -336,6 +340,7 @@
         {% endif %}
     </div>
     <!-- 인쇄 버튼 -->
+    {% if can_export %}
     <div class="d-flex gap-2">
         <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="printSelected()">
             <i class="fas fa-print me-1"></i> 선택 인쇄
@@ -344,10 +349,13 @@
             <i class="fas fa-print me-1"></i> 전체 인쇄
         </button>
     </div>
+    {% endif %}
 </div>
 {% endif %}
 
 <script>
+const CAN_EDIT_SALARY = {{ can_edit|yesno:"true,false" }};
+const SELECTED_COMPANY = '{{ selected_company|escapejs }}';
 function printSelected() {
     const checked = document.querySelectorAll('input[name="salary_id"]:checked');
     const ids = [...checked].map(el => el.value).join(',');
@@ -396,6 +404,7 @@ function applyExcludeStickyShift(active) {
 }
 
 function toggleExclude() {
+    if (!CAN_EDIT_SALARY) return;
     excludeMode = !excludeMode;
     document.querySelectorAll('.exclude-col').forEach(el => {
         el.style.display = excludeMode ? '' : 'none';
@@ -431,6 +440,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function autoCalculate() {
+    if (!CAN_EDIT_SALARY) return;
     const excludeIds = [...document.querySelectorAll('.exclude-check:checked')].map(el => parseInt(el.value));
     const excludeMsg = excludeIds.length > 0 ? `\n(${excludeIds.length}명 제외)` : '';
     if (!confirm(`${SALARY_MONTH} 급여에 등록된 요율로 보험료를 자동 계산합니다.${excludeMsg}\n기존에 입력된 보험료 값은 덮어씁니다. 계속하시겠습니까?`)) return;
@@ -457,6 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!table) return;
 
     table.addEventListener('click', function(e) {
+        if (!CAN_EDIT_SALARY) return;
         const cell = e.target.closest('.editable-cell');
         if (!cell || cell.querySelector('input')) return;
 
@@ -512,7 +523,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     salary_id: salaryId,
                     field: field,
-                    value: parseFloat(newValue) || 0
+                    value: parseFloat(newValue) || 0,
+                    company: SELECTED_COMPANY
                 })
             })
             .then(res => res.json())
@@ -595,6 +607,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function openRemarkModal(cell) {
+        if (!CAN_EDIT_SALARY) return;
         remarkSalaryId = cell.dataset.salaryId;
         remarkCell = cell;
         const empNm = cell.dataset.empNm;
@@ -610,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch("{% url 'hr:salary_update' %}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-            body: JSON.stringify({ salary_id: remarkSalaryId, field: 'remark', value: value })
+            body: JSON.stringify({ salary_id: remarkSalaryId, field: 'remark', value: value, company: SELECTED_COMPANY })
         })
         .then(r => r.json())
         .then(res => {

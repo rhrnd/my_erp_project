@@ -33,6 +33,7 @@
         height: 28px;
         line-height: 1;
     }
+    {% if can_edit %}
     .atnd-cell {
         cursor: pointer;
         text-align: center;
@@ -40,6 +41,11 @@
     .atnd-cell:hover {
         background-color: #f0f9ff !important;
     }
+    {% else %}
+    .atnd-cell {
+        text-align: center;
+    }
+    {% endif %}
     /* 헤더 및 구분 열 배경색 — Bootstrap table-light 통일 */
     .atnd-table thead th, .bg-light-gray {
         background-color: #f8f9fa;
@@ -138,9 +144,11 @@
                         </td>
                         <td rowspan="4" class="text-center align-middle" style="font-size:11px; padding:2px;">
                             <div id="remark-{{ eid }}"
-                                 style="cursor:pointer; white-space:pre-wrap; height:90px; overflow-y:auto; padding:2px;"
+                                 style="{% if can_edit %}cursor:pointer; {% endif %}white-space:pre-wrap; height:90px; overflow-y:auto; padding:2px;"
+                                 {% if can_edit %}
                                  hx-get="/hr/attendance/remark/edit/{{ eid }}/{{ yr }}/{{ mo }}/"
-                                 hx-trigger="click" hx-target="#remark-{{ eid }}" hx-swap="outerHTML">
+                                 hx-trigger="click" hx-target="#remark-{{ eid }}" hx-swap="outerHTML"
+                                 {% endif %}>
                                 {{ employee.remark }}
                             </div>
                         </td>
@@ -180,6 +188,8 @@
     </div>
 </div>
 <script>
+    const CAN_EDIT_ATTENDANCE = {{ can_edit|yesno:"true,false" }};
+
     // 회사 필터
     document.getElementById('companyFilter').addEventListener('change', function () {
         const url = new URL(window.location.href);
@@ -195,6 +205,7 @@
 
     // 이벤트 위임 — 근태 셀 클릭/편집/저장
     document.querySelector('tbody').addEventListener('click', function (e) {
+        if (!CAN_EDIT_ATTENDANCE) return;
         const td = e.target.closest('td.atnd-cell');
         if (!td || td.querySelector('input')) return;
 

@@ -30,12 +30,14 @@
         font-size: 14px;
         font-weight: 600;
         color: #1e293b;
-        cursor: pointer;
         padding: 4px 8px;
         border-radius: 6px;
         transition: background 0.15s;
     }
+    {% if can_edit %}
+    .rate-value { cursor: pointer; }
     .rate-value:hover { background: #e0f2fe; }
+    {% endif %}
     .rate-value input {
         width: 100%;
         border: none;
@@ -173,9 +175,11 @@
 </div>
 
 <script>
+const CAN_EDIT_RATE = {{ can_edit|yesno:"true,false" }};
 // ── 인라인 편집 ─────────────────────────────────────────────────────────────
 document.querySelectorAll('.editable-cell').forEach(cell => {
     cell.addEventListener('click', function () {
+        if (!CAN_EDIT_RATE) return;
         if (this.querySelector('input')) return;
 
         const originalValue = this.getAttribute('data-value') || '0';

@@ -3,9 +3,11 @@
 {% block content %}
 <div class="pt-4 pb-2 mb-4 d-flex justify-content-between align-items-center">
     <h2 class="h3 mb-0 text-gray-800 fw-bold">부서 관리</h2>
+    {% if can_create %}
     <button class="btn btn-primary shadow-sm" onclick="openCreateModal()">
         + 부서 등록
     </button>
+    {% endif %}
 </div>
 
 <!-- 회사별 부서 테이블 -->
@@ -22,7 +24,7 @@
                         <tr>
                             <th>부서명</th>
                             <th style="width:90px;">상태</th>
-                            <th style="width:70px;">관리</th>
+                            {% if can_edit %}<th style="width:70px;">관리</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -36,12 +38,14 @@
                                 <span class="badge bg-secondary bg-opacity-10 text-secondary">미사용</span>
                                 {% endif %}
                             </td>
+                            {% if can_edit %}
                             <td>
                                 <button class="btn btn-sm btn-outline-primary"
                                     onclick="openUpdateModal('{{ dept.dept_id }}', '{{ dept.dept_comp }}', '{{ dept.dept_nm }}', '{{ dept.in_use|yesno:'true,false' }}')">
                                     수정
                                 </button>
                             </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -96,6 +100,8 @@
 <script>
     let deptModal;
     let isEditMode = false;
+    const CAN_CREATE_DEPARTMENT = {{ can_create|yesno:"true,false" }};
+    const CAN_EDIT_DEPARTMENT = {{ can_edit|yesno:"true,false" }};
 
     document.addEventListener('DOMContentLoaded', function() {
         const modalEl = document.getElementById('deptModal');
@@ -114,6 +120,7 @@
     });
 
     function openCreateModal() {
+        if (!CAN_CREATE_DEPARTMENT) return;
         isEditMode = false;
         document.getElementById('deptModalTitle').innerText = "부서 등록";
         document.getElementById('deptId').value = "";
@@ -124,6 +131,7 @@
     }
 
     function openUpdateModal(id, comp, name, inUse) {
+        if (!CAN_EDIT_DEPARTMENT) return;
         isEditMode = true;
         document.getElementById('deptModalTitle').innerText = "부서 수정";
         document.getElementById('deptId').value = id;
@@ -135,6 +143,8 @@
     }
 
     function saveDepartment() {
+        if (isEditMode && !CAN_EDIT_DEPARTMENT) return;
+        if (!isEditMode && !CAN_CREATE_DEPARTMENT) return;
         const comp = document.getElementById('deptComp').value;
         const name = document.getElementById('deptName').value;
         if (!comp) {
